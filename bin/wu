@@ -3,6 +3,7 @@ var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
 var path = require('path')
 var fs = require('fs')
+var spawnSync = require('child_process').spawnSync
 
 function alignCommands (commands) {
   var maxCommandLength = 0
@@ -25,28 +26,30 @@ function alignCommands (commands) {
 }
 
 var knownOpts = {
-  'help': Boolean,
-  'verbose': Boolean,
-  'version': Boolean
+  'help': Boolean
 }
 var shortHands = {
-  'h': ['--help'],
-  'v': ['--verbose']
+  'h': ['--help']
 }
 
-// var suiteRoot = path.join(__dirname, '../../../')
-
 var description = {
-  'help': 'Display this help',
-  'verbose': 'Display extra information during execution',
-  'version': 'Display the version number'
+  'help': '  Display this help'
 }
 var parsed = nopt(knownOpts, shortHands)
 
-if (parsed.help || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
+if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
   if (parsed.argv.remain.length > 1) {
-    console.log('Unimplemented yet')
-    process.exit(1)
+    var commandName = parsed.argv.remain[1]
+    var commandPath = path.join(__dirname, commandName)
+    var stat = fs.statSync(commandPath)
+
+    if (stat.isFile()) {
+      var r = spawnSync(commandPath, ['-h'], {stdio: 'inherit'})
+      process.exit(r.status)
+    } else {
+      console.log('Invalid command: ' + commandName)
+      process.exit(1)
+    }
   }
 
   var executableName = path.basename(process.argv[1])
@@ -57,15 +60,14 @@ if (parsed.help || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.origin
   console.log('Available commands: ')
   console.log(alignCommands({
     'build': 'Create a build from a configuration',
-    'init': 'Create an empty benchmarking repository',
-    'install': 'Add and initialize an artifact in the repository',
+    // 'init': 'Create an empty benchmarking repository',
+    // 'install': 'Add and initialize an artifact in the repository',
     'list': 'Find, verify, and list available artifact(s)',
     'run': 'Execute build(s) on compatible environment(s) and produce a run',
     'report': 'Aggregate run(s), select significant result(s), and produce a report'
   }))
   console.log('')
-  console.log("See '" + executableName + " help <command>' or '" + executableName +
-    " help <concept>' to read about a specific subcommand or concept.")
+  console.log("See '" + executableName + " help <command>' to read about a specific subcommand.")
   process.exit(0)
 }
 
@@ -74,3 +76,14 @@ if (parsed.version || parsed.argv.remain.indexOf('version') > -1) {
   console.log(packageInfo.version)
   process.exit(0)
 }
+
+if (parsed.argv.remain.length < 1) {
+  console.log('no command specified')
+  process.exit(1)
+}
+
+commandName = parsed.argv.remain[0]
+commandPath = path.join(__dirname, commandName)
+var args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1)
+var r = spawnSync(commandPath, args, {stdio: 'inherit'})
+process.exit(r.status)
