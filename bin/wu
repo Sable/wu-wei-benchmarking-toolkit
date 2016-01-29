@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+var nopt = require('nopt')
+var noptUsage = require('nopt-usage')
+var path = require('path')
+var fs = require('fs')
+
+function alignCommands (commands) {
+  var maxCommandLength = 0
+  for (var c in commands) {
+    if (c.length > maxCommandLength) {
+      maxCommandLength = c.length
+    }
+  }
+
+  // Determine the next position of the aligned boundary
+  var residue = maxCommandLength % 8
+  var boundaryIndex = maxCommandLength + residue
+  var spaces = '                                                '
+  var lines = []
+  for (c in commands) {
+    lines.push('    ' + c + spaces.slice(0, boundaryIndex - c.length) + commands[c])
+  }
+
+  return lines.join('\n')
+}
+
+var knownOpts = {
+  'help': Boolean,
+  'verbose': Boolean,
+  'version': Boolean
+}
+var shortHands = {
+  'h': ['--help'],
+  'v': ['--verbose']
+}
+
+// var suiteRoot = path.join(__dirname, '../../../')
+
+var description = {
+  'help': 'Display this help',
+  'verbose': 'Display extra information during execution',
+  'version': 'Display the version number'
+}
+var parsed = nopt(knownOpts, shortHands)
+
+if (parsed.help || parsed.argv.remain.indexOf('help') > -1) {
+  if (parsed.argv.remain.length > 1) {
+    console.log('Unimplemented yet')
+    process.exit(1)
+  }
+
+  var executableName = path.basename(process.argv[1])
+  console.log('usage: ' + executableName + ' [<options>] <command> [<args>]\n')
+  console.log('Options:')
+  console.log(noptUsage(knownOpts, shortHands, description))
+  console.log('')
+  console.log('Available commands: ')
+  console.log(alignCommands({
+    'build': 'Create a build from a configuration',
+    'init': 'Create an empty benchmarking repository',
+    'install': 'Add and initialize an artifact in the repository',
+    'list': 'Find, verify, and list available artifact(s)',
+    'run': 'Execute build(s) on compatible environment(s) and produce a run',
+    'report': 'Aggregate run(s), select significant result(s), and produce a report'
+  }))
+  console.log('')
+  console.log("See '" + executableName + " help <command>' or '" + executableName +
+    " help <concept>' to read about a specific subcommand or concept.")
+  process.exit(0)
+}
+
+if (parsed.version || parsed.argv.remain.indexOf('version') > -1) {
+  var packageInfo = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json')))
+  console.log(packageInfo.version)
+  process.exit(0)
+}

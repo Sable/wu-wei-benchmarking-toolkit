@@ -1,7 +1,9 @@
 {
-	"name": "ostrich-config",
+	"name": "wu-wei-benchmarking-toolkit",
 	"version": "0.1.0",
-	"bin": "bin/main.js",
+	"bin": {
+		"wu": "bin/wu"
+	},
 	"dependencies": {
 		"node-dir": ">=0.1.11",
 		"nopt": ">=3.0.6",
