@@ -16,13 +16,19 @@ var description = {
   'help': 'Display this help'
 }
 var parsed = nopt(knownOpts, shortHands, process.argv, 2)
-var dirRoot = parsed.argv.remain.length > 0 ? parsed.argv.remain[0] : process.cwd()
+
+var dirRoot = parsed.argv.remain.length > 0 ? parsed.argv.remain[0] : null
 
 if (parsed.help) {
   var usage = noptUsage(knownOpts, shortHands, description)
   var executableName = path.basename(process.argv[1])
   console.log('Usage: ' + executableName + ' [options] [root directory path]')
   console.log(usage)
+  process.exit(1)
+}
+
+if (dirRoot === null) {
+  console.log('fatal: No benchmarking directory provided')
   process.exit(1)
 }
 

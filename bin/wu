@@ -85,5 +85,5 @@ if (parsed.argv.remain.length < 1) {
 commandName = parsed.argv.remain[0]
 commandPath = path.join(__dirname, commandName)
 var args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1)
-var r = spawnSync(commandPath, args, {stdio: 'inherit'})
+r = spawnSync(commandPath, args, {stdio: 'inherit'})
 process.exit(r.status)
