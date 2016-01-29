@@ -50,7 +50,6 @@ if (parsed.help || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.origin
   }
 
   var executableName = path.basename(process.argv[1])
-  console.log(parsed)
   console.log('usage: ' + executableName + ' [<options>] <command> [<args>]\n')
   console.log('Options:')
   console.log(noptUsage(knownOpts, shortHands, description))
