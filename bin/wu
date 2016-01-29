@@ -43,13 +43,14 @@ var description = {
 }
 var parsed = nopt(knownOpts, shortHands)
 
-if (parsed.help || parsed.argv.remain.indexOf('help') > -1) {
+if (parsed.help || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
   if (parsed.argv.remain.length > 1) {
     console.log('Unimplemented yet')
     process.exit(1)
   }
 
   var executableName = path.basename(process.argv[1])
+  console.log(parsed)
   console.log('usage: ' + executableName + ' [<options>] <command> [<args>]\n')
   console.log('Options:')
   console.log(noptUsage(knownOpts, shortHands, description))
