@@ -5,10 +5,7 @@ var configLib = require(path.join(__dirname, '../lib/config'))
 var pointer = require('json-pointer')
 var extend = require('extend')
 var noptUsage = require('nopt-usage')
-var shelljs = require('shelljs')
-var moment = require('moment')
 var math = require('mathjs')
-var dir = require('node-dir')
 
 var knownOpts = {
   'csv': Boolean,
