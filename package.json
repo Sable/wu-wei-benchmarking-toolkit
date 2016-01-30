@@ -2,7 +2,8 @@
 	"name": "wu-wei-benchmarking-toolkit",
 	"version": "0.1.0",
 	"bin": {
-		"wu": "bin/wu"
+		"wu": "bin/wu",
+        "bt": "bin/wu"
 	},
 	"dependencies": {
 		"node-dir": ">=0.1.11",
