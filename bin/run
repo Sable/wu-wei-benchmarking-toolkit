@@ -23,6 +23,7 @@ var knownOpts = {
   'platform': String,
   'environment': [String, Array],
   'skip-output-verification': Boolean,
+  'root': String,
   'verbose': Boolean
 }
 var shortHands = {
@@ -36,10 +37,9 @@ var shortHands = {
   'is': ['--input-size'],
   'n': ['--iteration-number'],
   'p': ['--platform'],
+  'r': ['--root'],
   'v': ['--verbose']
 }
-
-var suiteRoot = path.join(__dirname, '../../../')
 
 function deepcopy (o) {
   if (Array.prototype.isPrototypeOf(o)) {
@@ -117,6 +117,20 @@ function executeRun (config, options) {
   return jsonOutput
 }
 
+var parsed = nopt(knownOpts, shortHands)
+
+if (!parsed.root) {
+  console.log('fatal: No benchmarking suite root directory provided')
+  process.exit(1)
+} else {
+  var suiteRoot = path.resolve(process.cwd(), parsed.root)
+}
+
+if (parsed.clean) {
+  shelljs.rm('-rf', path.join(suiteRoot, '/runs'))
+  process.exit(0)
+}
+
 configLib.config(suiteRoot, function (err, config) {
   if (err) {
     console.log(err)
@@ -135,9 +149,9 @@ configLib.config(suiteRoot, function (err, config) {
     'input-size': 'One of [' + pointer.get(config.schema, '/definitions/experiment/properties/input-size/enum') + '], defaults to medium',
     'iteration-number': 'Number of times to execute the benchmark',
     'platform': 'Path to a configuration file describing the current hardware configuration',
+    'root': 'Benchmark suite root',
     'skip-output-verification': 'Do not perform verification of output results'
   }
-  var parsed = nopt(knownOpts, shortHands)
 
   if (parsed.help) {
     var usage = noptUsage(knownOpts, shortHands, description)
@@ -152,11 +166,6 @@ configLib.config(suiteRoot, function (err, config) {
     console.log('optional arguments:')
     console.log(usage)
     process.exit(1)
-  }
-
-  if (parsed.clean) {
-    shelljs.rm('-rf', path.join(suiteRoot, '/runs'))
-    process.exit(0)
   }
 
   var options = {

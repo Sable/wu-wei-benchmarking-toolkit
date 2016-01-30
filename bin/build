@@ -17,6 +17,7 @@ var knownOpts = {
   'experiment': String,
   'help': Boolean,
   'implementation': [String, Array],
+  'root': String,
   'verbose': Boolean
 }
 var shortHands = {
@@ -27,8 +28,6 @@ var shortHands = {
   'i': ['--implementation'],
   'v': ['--verbose']
 }
-
-var suiteRoot = path.join(__dirname, '../../../')
 
 function invalid (buildConfig) {
   return null
@@ -179,6 +178,13 @@ function combinations () {
 
 // Parse for options that do not need the configuration info
 var parsed = nopt(knownOpts, shortHands)
+if (!parsed.root) {
+  console.log('fatal: No benchmarking suite root directory provided')
+  process.exit(1)
+} else {
+  var suiteRoot = path.resolve(process.cwd(), parsed.root)
+}
+
 if (parsed.clean) {
   shelljs.rm('-rf', path.join(suiteRoot, '/builds'))
   process.exit(0)
@@ -282,7 +288,7 @@ configLib.config(suiteRoot, function (err, config) {
   buildConfigs.forEach(function (config) {
     computeBuildDirectoryName(config, function (err, name) {
       if (err) throw err
-      config.location = path.join(suiteRoot, '/builds/', name)
+      config.location = path.join(suiteRoot, 'builds', name)
 
       shelljs.mkdir('-p', config.location)
       createRunner(config)
