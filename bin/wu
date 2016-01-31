@@ -62,6 +62,9 @@ var description = {
 }
 var parsed = nopt(knownOpts, shortHands)
 
+var hiddenDirName = '.wu'
+var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : findRootDirectoryPath(process.cwd(), hiddenDirName)
+
 if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
   if (parsed.argv.remain.length > 1) {
     var commandName = parsed.argv.remain[1]
@@ -69,7 +72,8 @@ if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.index
     var stat = fs.statSync(commandPath)
 
     if (stat.isFile()) {
-      var r = spawnSync(commandPath, ['-h'], {stdio: 'inherit'})
+      var args = suiteRoot === null ? ['-h'] : ['-h', '--root', suiteRoot]
+      var r = spawnSync(commandPath, args, {stdio: 'inherit'})
       process.exit(r.status)
     } else {
       console.log('Invalid command: ' + commandName)
@@ -107,8 +111,6 @@ if (parsed.argv.remain.length < 1) {
   process.exit(1)
 }
 
-var hiddenDirName = '.wu'
-var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : findRootDirectoryPath(process.cwd(), hiddenDirName)
 if (suiteRoot === null) {
   console.log('fatal: Not a benchmarking repository (or any of the parent directories): ' + hiddenDirName)
   process.exit(1)
