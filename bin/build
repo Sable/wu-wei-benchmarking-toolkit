@@ -4,10 +4,6 @@ var path = require('path')
 var configLib = require(path.join(__dirname, '../lib/config.js'))
 var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
-var extend = require('extend')
-var fs = require('fs')
-var hashFiles = require('hash-files')
-var crypto = require('crypto')
 var shelljs = require('shelljs')
 
 var knownOpts = {
@@ -27,68 +23,6 @@ var shortHands = {
   'h': ['--help'],
   'i': ['--implementation'],
   'v': ['--verbose']
-}
-
-function expandPaths (paths) {
-  var expanded = []
-  for (var i = 0; i < paths.length; ++i) {
-    var p = paths[i]
-
-    if (!fs.lstatSync(p).isDirectory()) {
-      expanded.push(p)
-    } else {
-      expanded.push(path.join(p, '**'))
-    }
-  }
-  return expanded
-}
-
-function computeBuildDirectoryName (config, cb) {
-  var paths = expandPaths(config.implementation.dependencies)
-  var hash = crypto.createHash('sha1')
-  hash.update(JSON.stringify(config))
-  hashFiles({
-    files: paths
-  }, function (err, hashValue) {
-    if (err) cb(err)
-    hash.update(hashValue, 'string')
-    cb(null, hash.digest('hex'))
-  })
-}
-
-function createRunner (config) {
-  if (parsed.verbose) {
-    console.log(
-      'creating ' + config.compiler['runner-name'] +
-      ' for ' + config.benchmark['short-name'] +
-      ' from ' + config.implementation['short-name'] + ' implementation' +
-      ' using ' + config.compiler['short-name'] + ' compiler')
-    console.log('result saved in ' + config.location)
-  }
-  var silentState = shelljs.config.silent
-  shelljs.config.silent = true
-  shelljs.pushd(config.location)
-
-  config.compiler.commands.forEach(function (c, i) {
-    var cmd = c['executable-path'] + ' ' +
-      c.options.join(' ')
-    var status = shelljs.exec(cmd,
-      {silent: !parsed.verbose})
-    status.output.to('log-' + i + '.txt')
-
-    if (status.code !== 0) {
-      console.log('Build error for ' + config.benchmark['short-name'] + "'s " +
-        config.implementation['short-name'] + ' implementation ' +
-        ' using ' + config.compiler['short-name'] + ' compiler,' +
-        " when executing '" + cmd + "'")
-      console.log(status.output)
-      process.exit(1)
-    }
-  })
-  config.time = new Date()
-  JSON.stringify(config, null, '  ').to('build.json')
-  shelljs.popd()
-  shelljs.config.silent = silentState
 }
 
 // Parse for options that do not need the configuration info
@@ -133,12 +67,6 @@ configLib.config(suiteRoot, function (err, config) {
     implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
     compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list']
   }).forEach(function (config) {
-    computeBuildDirectoryName(config, function (err, name) {
-      if (err) throw err
-      config.location = path.join(suiteRoot, 'builds', name)
-
-      shelljs.mkdir('-p', config.location)
-      createRunner(config)
-    })
+    configLib.createRunner(config, parsed)
   })
 })

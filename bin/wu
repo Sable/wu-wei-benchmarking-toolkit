@@ -118,6 +118,6 @@ if (suiteRoot === null) {
 
 commandName = parsed.argv.remain[0]
 commandPath = path.join(__dirname, commandName)
-var args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1).concat(['--root', suiteRoot])
+args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1).concat(['--root', suiteRoot])
 r = spawnSync(commandPath, args, {stdio: 'inherit'})
 process.exit(r.status)
