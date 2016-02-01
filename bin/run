@@ -184,45 +184,7 @@ configLib.config(suiteRoot, function (err, config) {
     }
   }
 
-  // Extract short-name(s) from position arguments
-
-  parsed.benchmarks = parsed.benchmark || []
-  parsed.compilers = parsed.compiler || []
-  parsed.implementations = parsed.implementation || []
-  parsed.environments = parsed.environment || []
-
-  parsed.argv.remain.forEach(function (n) {
-    function isAmbiguous () {
-      if (matched) {
-        console.log("'" + n + "' matches multiple categories, specify its category with a flag.")
-        process.exit(1)
-      } else {
-        matched = true
-      }
-    }
-    var matched = false
-    var categories = [
-      'benchmark',
-      'compiler',
-      'implementation',
-      'environment'
-    ]
-
-    categories.forEach(function (c) {
-      if (config[c + '-list'].indexOf(n) > -1) {
-        parsed[c + 's'].push(n)
-        isAmbiguous()
-      }
-    })
-
-    if (!matched) {
-      console.log("invalid short-name '" + n + "', available short-name(s):")
-      categories.forEach(function (c) {
-        console.log('  ' + c + 's: ' + config[c + '-list'])
-      })
-      process.exit(1)
-    }
-  })
+  configLib.extractShortNames(config, parsed)
 
   function printBuildSummary (shortName) {
     var b = config.builds[shortName]

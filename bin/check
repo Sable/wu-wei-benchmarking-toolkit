@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+var path = require('path')
+var configLib = require(path.join(__dirname, '../lib/config.js'))
+var nopt = require('nopt')
+var noptUsage = require('nopt-usage')
+var knownOpts = {
+  'build-config': Boolean,
+  'run-config': Boolean,
+  'root': String,
+  'help': Boolean,
+  'verbose': Boolean
+}
+var shortHands = {
+  'h': ['--help'],
+  'r': ['--root']
+}
+var description = {
+  'build-config': 'Check all possible build configurations from short-name(s)',
+  'run-config': 'Check all possible run configurations from short-name(s)',
+  'help': 'Display this help',
+  'root': 'Benchmark suite root'
+}
+var parsed = nopt(knownOpts, shortHands, process.argv, 2)
+
+if (parsed.help) {
+  var usage = noptUsage(knownOpts, shortHands, description)
+  var executableName = path.basename(process.argv[1])
+  console.log('Usage: ' + executableName + ' [options] [short-name [short-name ...]]\n')
+  console.log(
+    'Check that all possible configurations are valid.\n' +
+    'Specify short-name(s) for artifacts to check configurations\n' +
+    'made from these artifacts.\n')
+  console.log('positional arguments: ')
+  console.log("  short-name\tartifact's short-name. ")
+  console.log('')
+  console.log('optional arguments:')
+  console.log(usage)
+  process.exit(1)
+}
+
+if (!parsed.root) {
+  console.log('fatal: No benchmarking suite root directory provided')
+  process.exit(1)
+}
+
+configLib.config(parsed.root, function (err, config) {
+  if (err) {
+    console.log(err)
+    process.exit(1)
+  }
+
+  configLib.extractShortNames(config, parsed)
+
+  if (parsed['build-config']) {
+    var buildConfigs = configLib.genBuildConfigurations(config, {
+      benchmarks: parsed.benchmarks.length > 0 ? parsed.benchmarks : config['benchmarks-list'],
+      implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
+      compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list']
+    })
+
+    if (parsed.verbose) {
+      console.log(JSON.stringify(buildConfigs, null, '    '))
+    } else {
+      buildConfigs.forEach(function (config) {
+        console.log('benchmark: ' + config.benchmark['short-name'])
+        console.log('implementation: ' + config.implementation['short-name'])
+        console.log('compiler: ' + config.compiler['short-name'])
+        console.log('build commands:')
+        configLib.createBuildCompilationCommands(config).forEach(function (c) {
+          console.log(c)
+        })
+        console.log('')
+      })
+    }
+  }
+
+  if (parsed['run-config']) {
+    var runConfigs = configLib.genRunConfigurations(config, {
+      benchmarks: parsed.benchmarks.length > 0 ? parsed.benchmarks : config['benchmarks-list'],
+      implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
+      compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list'],
+      environments: parsed.environments.length > 0 ? parsed.environments : config['environment-list']
+    })
+
+    if (parsed.verbose) {
+      console.log(JSON.stringify(runConfigs, null, '    '))
+    } else {
+      runConfigs.forEach(function (config) {
+        console.log('benchmark: ' + config.benchmark['short-name'])
+        console.log('implementation: ' + config.implementation['short-name'])
+        console.log('compiler: ' + config.compiler['short-name'])
+        console.log('environment: ' + config.environment['short-name'])
+        console.log('run command:')
+        configLib.createBuildCompilationCommands(config).forEach(function (c) {
+          console.log(c)
+        })
+        console.log('')
+      })
+    }
+  }
+})
