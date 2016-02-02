@@ -50,10 +50,21 @@ configLib.config(suiteRoot, function (err, config) {
   }
 
   if (parsed.help) {
+    console.log('usage: report [options] [short-name [short-name ...]]\n')
+    console.log(
+      'Report the aggregated results from multiple runs. \n' +
+      'Specify short-name(s) of artifacts to only report results\n' +
+      'that match at least one name in each corresponding category.\n')
+    console.log('positional arguments: ')
+    console.log("  short-name\t\tartifact's short-name. ")
+    console.log('')
+    console.log('optional arguments:')
     var usage = noptUsage(knownOpts, shortHands, description)
     console.log(usage)
-    process.exit(1)
+    process.exit(0)
   }
+
+  configLib.extractShortNames(config, parsed)
 
   var runs = []
 
@@ -68,11 +79,16 @@ configLib.config(suiteRoot, function (err, config) {
     }
   }
 
+  var isSelected = configLib.createConfigFilter(config, parsed)
   var results = {}
   runs.forEach(function (runPath) {
     var runConfig = deepcopy(pointer.get(config, path.join('/', runPath)))
 
     for (var h in runConfig.results) {
+      if (!isSelected(runConfig.results[h])) {
+        continue
+      }
+
       // Concatenate multiple time results for the same configuration in different runs
       if (results.hasOwnProperty(h)) {
         results[h].times = results[h].times.concat(runConfig.results[h].times)
@@ -90,17 +106,17 @@ configLib.config(suiteRoot, function (err, config) {
   }
 
   console.log('benchmark,implementation,compiler,platform,environments,mean,std,times')
-  for (var i = 0; i < a.length; ++i) {
+  a.forEach(function (runConfig) {
     var line = [
-      a[i].build.benchmark['short-name'],
-      a[i].build.implementation['short-name'],
-      a[i].build.compiler['short-name'],
-      a[i].platform['short-name'],
-      a[i].environment['short-name'],
-      a[i]['mean-time'],
-      a[i]['std-time']
+      runConfig.benchmark['short-name'],
+      runConfig.implementation['short-name'],
+      runConfig.compiler['short-name'],
+      runConfig.platform['short-name'],
+      runConfig.environment['short-name'],
+      runConfig['mean-time'],
+      runConfig['std-time']
     ]
-    line = line.concat(a[i].times)
+    line = line.concat(runConfig.times)
     console.log(line.join(','))
-  }
+  })
 })

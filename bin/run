@@ -86,7 +86,7 @@ configLib.config(suiteRoot, function (err, config) {
     console.log('')
     console.log('optional arguments:')
     console.log(usage)
-    process.exit(1)
+    process.exit(0)
   }
 
   // Load builds
@@ -157,7 +157,8 @@ configLib.config(suiteRoot, function (err, config) {
       benchmark: runConfig.benchmark,
       implementation: runConfig.implementation,
       compiler: runConfig.compiler,
-      platform: runConfig.platform
+      platform: runConfig.platform,
+      environment: runConfig.environment
     }))
     run.results[hash.digest('hex')] = runConfig
   })
