@@ -158,7 +158,10 @@ configLib.config(suiteRoot, function (err, config) {
       implementation: runConfig.implementation,
       compiler: runConfig.compiler,
       platform: runConfig.platform,
-      environment: runConfig.environment
+      environment: runConfig.environment,
+      experiment: {
+        'input-size': runConfig.experiment['input-size']
+      }
     }))
     run.results[hash.digest('hex')] = runConfig
   })
