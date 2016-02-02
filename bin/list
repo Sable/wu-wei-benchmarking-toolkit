@@ -3,6 +3,7 @@ var path = require('path')
 var config = require(path.join(__dirname, '../lib/config.js'))
 var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
+var fs = require('fs')
 var knownOpts = {
   'output-config': Boolean,
   'root': String,
@@ -33,6 +34,15 @@ if (!parsed.root) {
   process.exit(1)
 }
 
+var setupPath = path.join(parsed.root, '.wu', 'setup.json')
+
+if (fs.statSync(setupPath).isFile()) {
+  var setup = JSON.parse(fs.readFileSync(setupPath))
+} else {
+  console.log("'setup.json' not found: create a setup.json file in the .wu directory with the current platform")
+  process.exit(1)
+}
+
 // Convert to absolute path if the path is relative
 var dirRoot = path.resolve(process.cwd(), parsed.root)
 config.config(dirRoot, function (err, config) {
@@ -44,6 +54,7 @@ config.config(dirRoot, function (err, config) {
   if (parsed['output-config']) {
     console.log(JSON.stringify(config, null, '  '))
   } else {
+    console.log('Current platform: ' + setup['platform'])
     console.log('Available benchmarks: ' + config['benchmark-list'])
     console.log('Available implementations: ' + config['implementation-list'])
     console.log('Available compilers: ' + config['compiler-list'])

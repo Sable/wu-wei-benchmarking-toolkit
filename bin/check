@@ -91,9 +91,13 @@ configLib.config(parsed.root, function (err, config) {
         console.log('compiler: ' + config.compiler['short-name'])
         console.log('environment: ' + config.environment['short-name'])
         console.log('run command:')
-        configLib.createBuildCompilationCommands(config).forEach(function (c) {
-          console.log(c)
-        })
+        console.log(configLib.createRunCommand(config, 'runner-arguments'))
+
+        if (config.implementation.hasOwnProperty('runner-arguments-with-output-check')) {
+          console.log('run-with-output-check command:')
+          console.log(configLib.createRunCommand(config, 'runner-arguments-with-output-check'))
+        }
+
         console.log('')
       })
     }
