@@ -12,7 +12,8 @@
     "configuration-reference": { 
       "type": "object",
       "properties": {
-        "config": { "$ref": "/definitions/absolute-path" }
+        "config": { "$ref": "/definitions/absolute-path" },
+        "optional": { "type": "boolean" }
       },
       "required": ["config"]
     },
