@@ -18,6 +18,7 @@ Dependencies
 ------------------------
 Although we tried our best to minimize external dependencies, the suite still depends on the following external tools:
  1. Node.js
+ 2. Python
 
 Getting Started
 ------------------------
