@@ -27,8 +27,3 @@ Please [read our wiki](../../wiki) for more details on obtaining the toolkit and
 Copyright and License
 -------------------------
 Copyright (c) 2016, Erick Lavoie, Laurie Hendren and McGill University.
-
-- Ostrich: [MIT Licence](LICENSE)
-- OpenDwarfs: [GNU Lesser General Public License](//github.com/opendwarfs/OpenDwarfs/blob/master/LICENSE)
-- Rodinia: [Rodinia Licence](//www.cs.virginia.edu/~sc5nf/license.htm)
-- V8: [BSD 3 Licence](//developers.google.com/v8/terms)
