@@ -25,28 +25,6 @@ function alignCommands (commands) {
   return lines.join('\n')
 }
 
-function findRootDirectoryPath (start, name) {
-  var dir = start
-  var done = false
-  while (!done) {
-    var rootPath = path.join(dir, './' + name)
-    var exists = false
-    try {
-      exists = fs.statSync(rootPath).isDirectory()
-    } catch (e) {
-      exists = false
-    }
-
-    if (exists) {
-      return dir
-    } else {
-      done = dir === '/'
-      dir = path.dirname(dir)
-    }
-  }
-  return null
-}
-
 var knownOpts = {
   'help': Boolean,
   'root': String
@@ -63,7 +41,7 @@ var description = {
 var parsed = nopt(knownOpts, shortHands)
 
 var hiddenDirName = '.wu'
-var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : findRootDirectoryPath(process.cwd(), hiddenDirName)
+var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : configLib.findRootDirectoryPath(process.cwd(), hiddenDirName)
 
 if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
   if (parsed.argv.remain.length > 1) {
