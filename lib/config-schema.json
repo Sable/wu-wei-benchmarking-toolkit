@@ -1,7 +1,7 @@
 {
   "definitions": {
-    "relative-path": { "type": "string", "pattern": "^\\.(\/|(\/[0-9a-zA-Z-_\\.]+)+\/?)$" },
-    "absolute-path": { "type": "string", "pattern": "^(\/[0-9a-zA-Z-_\\.]+)+\/?$" },
+    "relative-path": { "type": "string", "pattern": "^\\.(\/|(\/[0-9a-zA-Z-_\\.\\+]+)+\/?)$" },
+    "absolute-path": { "type": "string", "pattern": "^(\/[0-9a-zA-Z-_\\.\\+]+)+\/?$" },
     "suite-root-path": { 
       "type": "object",
       "properties": {
@@ -75,14 +75,14 @@
         { "$ref": "#/definitions/option-list"}
       ]}
     },
-    "short-name": { "type": "string", "pattern": "^[a-z0-9-_\\.A-Z:]+$" },
+    "short-name": { "type": "string", "pattern": "^[a-z0-9-_\\.A-Z:\\+]+$" },
     "short-name-list": {
       "type": "array",
       "items": { "$ref": "#/definitions/short-name" },
       "uniqueItems": true
     },
     "version": { "type": "string", "pattern": "^[0-9]+.[0-9]+.[0-9]+$" },
-    "language": { "type": "string", "enum": ["c", "js", "matlab", "opencl", "webcl", "x86"] },
+    "language": { "type": "string" },
     "language-list": {
       "type": "array",
       "items": { "$ref": "#/definitions/language" },
@@ -149,7 +149,7 @@
     "compiler-command": {
       "type": "object",
       "properties": {
-        "executable-name": { "$ref": "#/definitions/short-name" },
+        "executable-name": { "type": "string" },
         "executable-path": { "anyOf": [ 
           { "$ref": "#/definitions/absolute-path" },
           { "$ref": "#/definitions/suite-root-path" }
