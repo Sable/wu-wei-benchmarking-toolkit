@@ -13,8 +13,9 @@ def getInfo():
     addItem(text,'gpu'       , info[3])
     addItem(text,'memory'    , info[4])
     addItem(text,'os'        , info[5])
-    addItem(text,'supported-languages', info[6])
-    addItem(text,'supported-formats'  , [], '') #last item
+    addItem(text,'supported-languages', info[6] )
+    addItem(text,'supported-formats'  , ['binary'])
+    addItem(text,'environments'       , [], '') #last item
     text.append('}')
     return text
 
@@ -60,6 +61,7 @@ def getHardwareInfo():
         print 'Not supported.'
         sys.exit(99)
     info.append(getArc(platform.machine())); # [6]
+    info[0] = trimShort(info[0]) #trim short name
     return info
 
 def trimA(s):
@@ -76,6 +78,15 @@ def trimC(s):
 
 def trimD(s):
     return s.strip('\r\n\t ')
+
+def trimShort(s):
+    res = []
+    for u in s:
+        if u.isalpha() or u.isdigit():
+            res.append(u)
+        elif u == ' ':
+            res.append('-')
+    return ''.join(res)
 
 def getLinuxGPU():
     strs = os.popen('lspci | grep VGA').read().strip().split('\n')
