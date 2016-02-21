@@ -152,11 +152,12 @@
         "executable-name": { "type": "string" },
         "executable-path": { "anyOf": [ 
           { "$ref": "#/definitions/absolute-path" },
-          { "$ref": "#/definitions/suite-root-path" }
+          { "$ref": "#/definitions/suite-root-path" },
+          { "$ref": "#/definitions/file-path-object" }
         ]},
         "options": { "$ref": "#/definitions/option-list" }
       },
-      "required": [ "executable-name", "options" ]
+      "required": [ "options" ]
     },
     "compiler-command-list": {
       "type": "array",
@@ -187,6 +188,7 @@
         "runner-source-file": { "$ref": "#/definitions/file-path" },
         "runner-arguments": { "$ref": "#/definitions/option-list" },
         "libraries": { "$ref": "#/definitions/file-path-list" },
+        "compilation-flags": { "$ref": "#/definitions/option-list" },
         "include-directories": { "$ref": "#/definitions/file-path-list" },
         "dependencies": { "$ref": "#/definitions/option-list" },
         "location": { "$ref": "#/definitions/absolute-path" }
