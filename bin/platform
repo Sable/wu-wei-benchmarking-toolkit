@@ -13,8 +13,9 @@ def getInfo():
     addItem(text,'gpu'       , info[3])
     addItem(text,'memory'    , info[4])
     addItem(text,'os'        , info[5])
-    addItem(text,'supported-languages', info[6])
-    addItem(text,'supported-formats'  , [], '') #last item
+    addItem(text,'supported-languages', info[6] )
+    addItem(text,'supported-formats'  , ['binary'])
+    addItem(text,'environments'       , [], '') #last item
     text.append('}')
     return text
 
@@ -35,7 +36,8 @@ def addItem(text,a,b,op=','):
 def getHardwareInfo():
     info = []
     #info.append(getpass.getuser())  # [0]
-    info.append(platform.node())     # [0]
+    #info.append(platform.node())    # [0]
+    info.append(getShortName())      # [0] user input
     info.append(platform.platform()) # [1]
     if sys.platform == 'win32':
         info.append(getWindowCmd('wmic path win32_processor get name'))       # [2]
@@ -44,7 +46,7 @@ def getHardwareInfo():
         osrelease,_,osinfo,_ = platform.win32_ver()
         info.append('Windows ' + osrelease + ' ' + osinfo)                    # [5]
     elif sys.platform == 'darwin':
-        info[0] = trimA(os.popen('system_profiler SPSoftwareDataType | grep "Computer Name"').read())
+        #info[0] = trimA(os.popen('system_profiler SPSoftwareDataType | grep "Computer Name"').read())
         info.append(trimA(os.popen('system_profiler SPHardwareDataType | grep "Processor Name"').read())) # [2]
         info.append(trimA(os.popen('system_profiler SPDisplaysDataType | grep Model').read()))            # [3]
         info.append(trimA(os.popen('system_profiler SPHardwareDataType | grep Memory').read()))           # [4]
@@ -76,6 +78,15 @@ def trimC(s):
 
 def trimD(s):
     return s.strip('\r\n\t ')
+
+def trimShort(s):
+    res = []
+    for u in s:
+        if u.isalpha() or u.isdigit():
+            res.append(u)
+        elif u == ' ' or u == '-':
+            res.append('-')
+    return ''.join(res).lower()
 
 def getLinuxGPU():
     strs = os.popen('lspci | grep VGA').read().strip().split('\n')
@@ -118,6 +129,17 @@ def getArc(a):
     else:
         print 'Not supported architecture: ' + str(a)
     return r
+
+# ask user input
+def getShortName():
+    oldout     = sys.stdout
+    sys.stdout = sys.stderr # set temporary output
+    shortname  = trimShort(raw_input(
+        '--  Please give a short name to your computer\n'
+        '--  (For example, mbp-2011 / win-user / linux-fans)\n'
+        '    Enter name: '))
+    sys.stdout = oldout     # restore stdout
+    return shortname
 
 def prettyPrint(s):
     for item in s:
