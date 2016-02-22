@@ -260,9 +260,18 @@
           "type": "string",
           "enum": ["small", "medium", "large"], 
           "expand": true
+        },
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "benchmarks": { "$ref": "#/definitions/short-name-list" },
+            "compilers": { "$ref": "#/definitions/short-name-list" },
+            "implementations": { "$ref": "#/definitions/short-name-list" },
+            "environments": { "$ref": "#/definitions/short-name-list" }
+          }
         }
       },
-      "required": ["type"]
+      "required": ["type", "short-name"]
     },
     "result": {
       "type": "object",
@@ -299,7 +308,8 @@
     "benchmark",
     "build", 
     "compiler", 
-    "environment", 
+    "environment",
+    "experiment", 
     "implementation",
     "platform",
     "result",

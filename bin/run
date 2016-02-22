@@ -100,7 +100,7 @@ configLib.config(suiteRoot, function (err, config) {
     }
   }
 
-  configLib.extractShortNames(config, parsed)
+  configLib.extractShortNames(config, parsed, run.experiment)
 
   var builds
   if (parsed.build) {
