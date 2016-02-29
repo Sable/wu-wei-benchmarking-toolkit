@@ -65,19 +65,24 @@ def getHardwareInfo():
     return info
 
 def trimA(s):
-    return s[s.index(':')+1:].strip()
+    return s[safeIndex(s,':')+1:].strip()
 
 def trimB(s, startop=':', endop='\n'):
-    sta = s.index(startop)   + len(startop)
-    end = s.index(endop,sta)
+    sta = safeIndex(s,startop)  + len(startop)
+    end = safeIndex(s,endop,sta)
     return s[sta:end].strip()
 
 def trimC(s):
-    numstr = s[s.index(':')+1:s.index('kB')-1].strip()
+    numstr = s[safeIndex(s,':')+1:safeIndex(s,'kB')-1].strip()
     return kb2gb(float(numstr))
 
 def trimD(s):
     return s.strip('\r\n\t ')
+
+def safeIndex(s, x, offset=0):
+    if s.find(x) < 0:
+        return -1
+    return s.index(x, offset)
 
 def trimShort(s):
     res = []
