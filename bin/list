@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 var path = require('path')
-var config = require(path.join(__dirname, '../lib/config.js'))
+var configLib = require(path.join(__dirname, '../lib/config.js'))
 var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
 var fs = require('fs')
@@ -50,7 +50,7 @@ try {
 
 // Convert to absolute path if the path is relative
 var dirRoot = path.resolve(process.cwd(), parsed.root)
-config.config(dirRoot, function (err, config) {
+configLib.config(dirRoot, function (err, config) {
   if (err) {
     console.log(JSON.stringify(err, null, '  '))
     process.exit(1)
@@ -58,13 +58,42 @@ config.config(dirRoot, function (err, config) {
 
   if (parsed['output-config']) {
     console.log(JSON.stringify(config, null, '  '))
+  } else if (parsed.argv.remain.length > 0) {
+    configLib.extractShortNames(config, parsed)
+    var summary = {
+      benchmarks: {},
+      compilers: {},
+      implementations: {},
+      environments: {}
+    }
+    configLib
+      .genRunConfigurations(config, {
+        benchmarks: parsed.benchmarks.length > 0 ? parsed.benchmarks : config['benchmarks-list'],
+        implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
+        compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list'],
+        environments: parsed.environments.length > 0 ? parsed.environments : config['environment-list']
+      })
+      .forEach(function (config) {
+        summary.benchmarks[config.benchmark['short-name']] = true
+        summary.compilers[config.compiler['short-name']] = true
+        summary.implementations[config.implementation['short-name']] = true
+        summary.environments[config.environment['short-name']] = true
+      })
+    Object.keys(summary).forEach(function (k) {
+      if (parsed[k].length === 0) {
+        console.log('Available ' + k + ': ' + Object.keys(summary[k]).sort())
+      }
+    })
+    if (parsed.implementations.length === 0) {
+      console.log()
+    }
   } else {
     console.log('Current platform: ' + setup['platform'])
-    console.log('Available experiments: ' + config['experiment-list'])
-    console.log('Available benchmarks: ' + config['benchmark-list'])
-    console.log('Available compilers: ' + config['compiler-list'])
-    console.log('Available environments: ' + config['environment-list'])
-    console.log('Available implementations: ' + config['implementation-list'])
+    console.log('Available experiments: ' + config['experiment-list'].slice().sort())
+    console.log('Available benchmarks: ' + config['benchmark-list'].slice().sort())
+    console.log('Available compilers: ' + config['compiler-list'].slice().sort())
+    console.log('Available environments: ' + config['environment-list'].slice().sort())
+    console.log('Available implementations: ' + config['implementation-list'].slice().sort())
     console.log("Add '-h' for possible options")
   }
   process.exit(0)
