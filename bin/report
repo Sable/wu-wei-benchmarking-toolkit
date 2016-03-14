@@ -12,7 +12,10 @@ var knownOpts = {
   'help': Boolean,
   'root': String,
   'run': [String, Array],
-  'verbose': Boolean
+  'verbose': Boolean,
+  'slowdown': String,
+  'speedup': String,
+  'input-size': [String, Array]
 }
 var shortHands = {
   'h': ['--help'],
@@ -46,6 +49,8 @@ configLib.config(suiteRoot, function (err, config) {
     'csv': 'Output results in csv format (default)',
     'run': 'Run results to use, repeat to combine results from multiple runs',
     'help': 'Display this help',
+    'speedup': 'Compute speedup ratio compared to the given reference',
+    'slowdown': 'Compute slowdown ratio compard to the given reference',
     'verbose': 'Show results from intermediary stages'
   }
 
@@ -61,9 +66,32 @@ configLib.config(suiteRoot, function (err, config) {
     console.log('optional arguments:')
     var usage = noptUsage(knownOpts, shortHands, description)
     console.log(usage)
+
+    if (parsed.verbose) {
+      console.log('Provided options: ')
+      console.log(JSON.stringify(parsed))
+    }
     process.exit(0)
   }
 
+  /*
+  if (parsed.speedup || parsed.slowdown) {
+    var toAdd = []
+    var ratioNames = parsed.speedup || parsed.slowdown
+    ratioNames.split(',').forEach(function (n) {
+      if (parsed.argv.remain.indexOf(n) === -1) {
+        toAdd.push(n)
+      }
+    })
+    parsed.argv.remain = parsed.argv.remain.concat(toAdd)
+  }
+  */
+
+  var experiment = {}
+  if (parsed['input-size']) {
+    experiment['input-size'] = parsed['input-size']
+    parsed.experiment = experiment
+  }
   configLib.extractShortNames(config, parsed)
 
   var runs = []
@@ -98,25 +126,211 @@ configLib.config(suiteRoot, function (err, config) {
     }
   })
 
+  var keys = {
+    'benchmarks': {},
+    'implementations': {},
+    'compilers': {},
+    'platforms': {},
+    'environments': {},
+    'input-sizes': {}
+  }
+
   var a = []
   for (var h in results) {
+    keys.benchmarks[results[h].benchmark['short-name']] = true
+    keys.implementations[results[h].implementation['short-name']] = true
+    keys.compilers[results[h].compiler['short-name']] = true
+    keys.platforms[results[h].platform['short-name']] = true
+    keys.environments[results[h].environment['short-name']] = true
+    keys['input-sizes'][results[h].experiment['input-size']] = true
+
     results[h]['mean-time'] = math.mean(results[h].times)
     results[h]['std-time'] = math.std(results[h].times)
     a.push(results[h])
   }
 
-  console.log('benchmark,implementation,compiler,platform,environments,mean,std,times')
-  a.forEach(function (runConfig) {
-    var line = [
-      runConfig.benchmark['short-name'],
-      runConfig.implementation['short-name'],
-      runConfig.compiler['short-name'],
-      runConfig.platform['short-name'],
-      runConfig.environment['short-name'],
-      runConfig['mean-time'],
-      runConfig['std-time']
-    ]
-    line = line.concat(runConfig.times)
-    console.log(line.join(','))
+  console.log('Invariants (configuration parameters that are the same for all runs):')
+  var invariants = {}
+  var variants = {}
+  for (var k in keys) {
+    if (Object.keys(keys[k]).length === 1) {
+      invariants[k] = true
+      console.log('    ' + k.slice(0, -1) + ': ' + Object.keys(keys[k]))
+    } else {
+      variants[k] = true
+    }
+  }
+
+  var names = []
+  Object.keys(variants).forEach(function (n) {
+    names.push(n.slice(0, -1))
   })
+
+  var lines = []
+  if (parsed.speedup || parsed.slowdown) {
+    console.log('Ratio:')
+
+    if (parsed.speedup) {
+      lines = [names.concat(['speedup'])]
+      console.log('    speedup = (reference mean-time) / mean-time')
+    } else {
+      lines = [names.concat(['slowdown'])]
+      console.log('    slowdown = mean-time / (reference mean-time)')
+    }
+  } else {
+    lines = [names.concat(['mean', 'std', 'repetitions'])]
+  }
+
+  var categories = ([['benchmarks', 'benchmark', 'short-name'],
+    ['implementations', 'implementation', 'short-name'],
+    ['compilers', 'compiler', 'short-name'],
+    ['platforms', 'platform', 'short-name'],
+    ['environments', 'environment', 'short-name'],
+    ['input-sizes', 'experiment', 'input-size']])
+    .filter(function (c) {
+      return variants[c[0]]
+    })
+
+  var getReferenceValue = function () {}
+  if (parsed.speedup || parsed.slowdown) {
+    var reference = {}
+    var referenceValues = (parsed.speedup
+      ? parsed.speedup
+      : parsed.slowdown).split(',')
+    var referenceCategories = referenceValues
+      .map(function (n) {
+        return configLib.getShortNameCategory(config, n)
+      })
+    console.log('Reference (used for computing the ratio): ')
+    referenceCategories.forEach(function (c, i) {
+      console.log('    ' + c + ': ' + referenceValues[i])
+    })
+    var referenceInvariantCategories = categories
+      .filter(function (c) {
+        return referenceCategories.indexOf(c[1]) >= 0
+      })
+    var referenceVariantCategories = categories
+      .filter(function (c) {
+        return referenceCategories.indexOf(c[1]) === -1
+      })
+
+    // Select all results that correspond to the reference
+    a.forEach(function (runConfig) {
+      // Skip results that are not from the reference
+      for (var i = 0; i < referenceInvariantCategories.length; ++i) {
+        var c = referenceInvariantCategories[i]
+        if (referenceValues.indexOf(runConfig[c[1]][c[2]]) === -1) {
+          return
+        }
+      }
+      var values = referenceVariantCategories.map(function (c) {
+        return runConfig[c[1]][c[2]]
+      })
+      pointer.set(
+        reference,
+        '/' + path.join.apply(null, values),
+        runConfig['mean-time'])
+    })
+    getReferenceValue = function (reference, runConfig) {
+      var values = referenceVariantCategories.map(function (c) {
+        return runConfig[c[1]][c[2]]
+      })
+      var pointerPath = '/' + path.join.apply(null, values)
+
+      if (!pointer.has(reference, pointerPath)) {
+        console.log('Ratio computation error (speedup or slowdown): no reference value found for [' +
+          referenceValues.map(function (v, i) {
+            return referenceCategories[i] + '=' + v
+          }) +
+          '] with additional values [' +
+          values.map(function (v, i) {
+            return referenceVariantCategories[i][1] + '=' + v
+          }) + '].' +
+          ' Provide a more specific reference to compute the ratio by providing additional values from at least one of those categories [' +
+          referenceVariantCategories
+            .map(function (c) {
+              return c[1]
+            }) +
+          ']')
+        process.exit(1)
+      }
+      return pointer.get(reference, pointerPath)
+    }
+  }
+
+  a.forEach(function (runConfig) {
+    var line = []
+
+    categories.forEach(function (c) {
+      line.push(runConfig[c[1]][c[2]])
+    })
+
+    if (parsed.speedup || parsed.slowdown) {
+      // Filter out results used as reference
+      for (var i = 0; i < referenceValues.length; ++i) {
+        if (line.indexOf(referenceValues[i]) >= 0) {
+          return
+        }
+      }
+    }
+
+    var meanTime = runConfig['mean-time']
+    var ratio
+    if (parsed.speedup) {
+      ratio = getReferenceValue(reference, runConfig) / runConfig['mean-time']
+      line.push(ratio.toFixed(2) + 'x')
+    } else if (parsed.slowdown) {
+      ratio = runConfig['mean-time'] / getReferenceValue(reference, runConfig)
+      line.push(ratio.toFixed(2) + 'x')
+    } else {
+      var stdTime = runConfig['std-time']
+      line.push(meanTime.toFixed(2) + 's')
+      line.push('+-' + (stdTime / meanTime * 100).toFixed(2) + '%')
+      line = line.concat(runConfig.times.length)
+    }
+
+    lines.push(line)
+  })
+  console.log()
+
+  // Align output
+  var maxLengths = lines[0].map(function (x) { return String(x).length })
+
+  lines.forEach(function (line) {
+    line.forEach(function (x, i) {
+      var s = String(x)
+      if (s.length > maxLengths[i]) {
+        maxLengths[i] = s.length
+      }
+    })
+  })
+
+  var spaces = '                                 '
+  var dashes = '---------------------------------'
+
+  function format (line) {
+    return line.map(function (x, i) {
+      var s = String(x)
+      var diff = maxLengths[i] - s.length
+      return s + spaces.slice(0, diff)
+    }).join('  ')
+  }
+
+  function underlines () {
+    // Underlines
+    console.log(format(lines[0].map(function (x, i) {
+      return dashes.slice(0, maxLengths[i])
+    })))
+  }
+
+  // Header
+  console.log(format(lines[0]))
+  underlines()
+  lines.slice(1).forEach(function (line) {
+    console.log(format(line))
+  })
+  underlines()
+
+  // Summary
+
 })

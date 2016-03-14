@@ -315,6 +315,19 @@
     "result",
     "run"
   ],
+  "input-size-list": [
+    "small",
+    "medium",
+    "large"
+  ],
+  "category-list": [
+    "benchmark",
+    "compiler",
+    "environment",
+    "experiment",
+    "implementation",
+    "platform"
+  ],
   "oneOf": [
     { "$ref": "#/definitions/benchmark" },
     { "$ref": "#/definitions/build" },
