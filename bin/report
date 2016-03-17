@@ -6,6 +6,8 @@ var pointer = require('json-pointer')
 var extend = require('extend')
 var noptUsage = require('nopt-usage')
 var math = require('mathjs')
+var fs = require('fs')
+var shelljs = require('shelljs')
 
 var knownOpts = {
   'csv': Boolean,
@@ -15,7 +17,8 @@ var knownOpts = {
   'verbose': Boolean,
   'slowdown': String,
   'speedup': String,
-  'input-size': [String, Array]
+  'input-size': [String, Array],
+  'plot': Boolean
 }
 var shortHands = {
   'h': ['--help'],
@@ -333,4 +336,89 @@ configLib.config(suiteRoot, function (err, config) {
 
   // Summary
 
+  if (parsed.plot) {
+    var setupPath = path.join(suiteRoot, '.wu', 'setup.json')
+    var setupPlotly = JSON.parse(fs.readFileSync(setupPath)).plotly
+
+    if (!setupPlotly || !setupPlotly.username || !setupPlotly.apiKey) {
+      console.log("Unspecified plotly credentials in'.wu/setup.json', please specify plotly.username and plotly.apikey.")
+      process.exit(1)
+    }
+
+    var plotly = require('plotly')(setupPlotly.username, setupPlotly.apiKey)
+    if (!plotly.username || !plotly.apiKey) {
+      console.log("Invalid plotly credentials in'.wu/setup.json'. Your credentials can be found under 'https://plot.ly/settings/api' when logging in.")
+      process.exit(1)
+    }
+
+    var data = {}
+
+    a.forEach(function (runConfig) {
+      var boxGroup = categories
+        .filter(function (c) {
+          return c[1] !== 'benchmark'
+        })
+        .map(function (c) {
+          return runConfig[c[1]][c[2]]
+        })
+        .join('-')
+
+      var benchmarkName = runConfig.benchmark['short-name']
+      if (!data.hasOwnProperty(boxGroup)) {
+        data[boxGroup] = {
+          y: [],
+          x: [],
+          name: boxGroup,
+          boxpoints: 'all',
+          jitter: 0.5,
+          pointpos: -1.8,
+          type: 'box',
+          boxmean: 'sd'
+        }
+      }
+
+      data[boxGroup].y = data[boxGroup].y.concat(runConfig.times)
+      data[boxGroup].x = data[boxGroup].x.concat(runConfig.times
+        .map(function (t) {
+          return benchmarkName
+        }))
+    })
+
+    var graphOptions = {
+      filename: 'timing-results-2',
+      fileopt: 'overwrite',
+      // boxmode: 'group',
+      title: 'Timing Results',
+      yaxis: {
+        title: 'Running time (s)'
+      }
+    }
+
+    data = Object.keys(data)
+      .map(function (k) {
+        return data[k]
+      })
+
+    console.log(JSON.stringify(data, null, '  '))
+
+    plotly.plot(
+      data,
+      graphOptions,
+      function (err, msg) {
+        console.log(msg)
+      })
+
+    var reportDirPath = path.join(suiteRoot, 'reports', configLib.computeDirectoryName(a))
+    var htmlReportPath = path.join(reportDirPath, 'report.html')
+    var htmlReport = configLib.createPlotlyReportPage(data, graphOptions)
+
+    var silentState = shelljs.config.silent
+    shelljs.config.silent = true
+    shelljs.mkdir('-p', reportDirPath)
+    shelljs.pushd(reportDirPath)
+    htmlReport.to(htmlReportPath)
+    shelljs.config.silent = silentState
+
+    console.log(htmlReportPath)
+  }
 })
