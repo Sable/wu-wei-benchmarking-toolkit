@@ -12,13 +12,13 @@ var shelljs = require('shelljs')
 var knownOpts = {
   'csv': Boolean,
   'help': Boolean,
+  'input-size': [String, Array],
+  'plot': Boolean,
   'root': String,
   'run': [String, Array],
-  'verbose': Boolean,
   'slowdown': String,
   'speedup': String,
-  'input-size': [String, Array],
-  'plot': Boolean
+  'verbose': Boolean
 }
 var shortHands = {
   'h': ['--help'],
@@ -50,8 +50,8 @@ configLib.config(suiteRoot, function (err, config) {
 
   var description = {
     'csv': 'Output results in csv format (default)',
-    'run': 'Run results to use, repeat to combine results from multiple runs',
     'help': 'Display this help',
+    'run': 'Run results to use, repeat to combine results from multiple runs',
     'speedup': 'Compute speedup ratio compared to the given reference',
     'slowdown': 'Compute slowdown ratio compard to the given reference',
     'verbose': 'Show results from intermediary stages'
@@ -152,13 +152,16 @@ configLib.config(suiteRoot, function (err, config) {
     a.push(results[h])
   }
 
-  console.log('Invariants (configuration parameters that are the same for all runs):')
+  console.log('### Invariants (configuration parameters that are the same for all runs) ###')
+  console.log()
   var invariants = {}
   var variants = {}
+  console.log('| category | short-name |')
+  console.log('| -------- | ---------- |')
   for (var k in keys) {
     if (Object.keys(keys[k]).length === 1) {
       invariants[k] = true
-      console.log('    ' + k.slice(0, -1) + ': ' + Object.keys(keys[k]))
+      console.log('|    ' + k.slice(0, -1) + ' | ' + Object.keys(keys[k]) + ' |')
     } else {
       variants[k] = true
     }
@@ -312,11 +315,12 @@ configLib.config(suiteRoot, function (err, config) {
   var dashes = '---------------------------------'
 
   function format (line) {
-    return line.map(function (x, i) {
+    var delim = '|'
+    return delim + line.map(function (x, i) {
       var s = String(x)
       var diff = maxLengths[i] - s.length
       return s + spaces.slice(0, diff)
-    }).join('  ')
+    }).join(' | ') + delim
   }
 
   function underlines () {
@@ -327,12 +331,14 @@ configLib.config(suiteRoot, function (err, config) {
   }
 
   // Header
+  console.log('### Results ###')
+  console.log()
   console.log(format(lines[0]))
   underlines()
   lines.slice(1).forEach(function (line) {
     console.log(format(line))
   })
-  underlines()
+  console.log()
 
   // Summary
 
