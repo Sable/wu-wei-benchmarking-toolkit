@@ -1,7 +1,7 @@
 {
   "definitions": {
-    "relative-path": { "type": "string", "pattern": "^\\.(\/|(\/[0-9a-zA-Z-_\\.\\+]+)+\/?)$" },
-    "absolute-path": { "type": "string", "pattern": "^(\/[0-9a-zA-Z-_\\.\\+]+)+\/?$" },
+    "relative-path": { "type": "string", "pattern": "^\\.(\/|(\/[0-9a-zA-Z-_\\.\\+\\*]+)+\/?)$" },
+    "absolute-path": { "type": "string", "pattern": "^(\/[0-9a-zA-Z-_\\.\\+\\*]+)+\/?$" },
     "suite-root-path": { 
       "type": "object",
       "properties": {

@@ -407,12 +407,14 @@ configLib.config(suiteRoot, function (err, config) {
 
     console.log(JSON.stringify(data, null, '  '))
 
+    /*
     plotly.plot(
       data,
       graphOptions,
       function (err, msg) {
         console.log(msg)
       })
+    */
 
     var reportDirPath = path.join(suiteRoot, 'reports', configLib.computeDirectoryName(a))
     var htmlReportPath = path.join(reportDirPath, 'report.html')
