@@ -34,20 +34,6 @@ if (!parsed.root) {
   process.exit(1)
 }
 
-var setupPath = path.join(parsed.root, '.wu', 'setup.json')
-
-try {
-  if (fs.statSync(setupPath).isFile()) {
-    var setup = JSON.parse(fs.readFileSync(setupPath))
-  } else {
-    console.log("'setup.json' not found: create a setup.json file in the .wu directory with the current platform")
-    process.exit(1)
-  }
-} catch (e) {
-  console.log(setupPath + ' not found, aborting')
-  process.exit(1)
-}
-
 // Convert to absolute path if the path is relative
 var dirRoot = path.resolve(process.cwd(), parsed.root)
 configLib.config(dirRoot, function (err, config) {
@@ -88,7 +74,7 @@ configLib.config(dirRoot, function (err, config) {
       console.log()
     }
   } else {
-    console.log('Current platform: ' + setup['platform'])
+    console.log('Current platform: ' + configLib.determinePlatform(config))
     console.log('Available experiments: ' + config['experiment-list'].slice().sort())
     console.log('Available benchmarks: ' + config['benchmark-list'].slice().sort())
     console.log('Available compilers: ' + config['compiler-list'].slice().sort())
