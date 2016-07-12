@@ -16,6 +16,7 @@
 		"shelljs": ">= 0.5.3",
 		"moment": ">= 2.10.6",
 		"mathjs": ">= 2.5.0",
-        "plotly": ">= 1.0.0"
+        "plotly": ">= 1.0.0",
+        "readline-sync": "1.x.x"
 	}
 }

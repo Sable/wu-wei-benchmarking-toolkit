@@ -37,7 +37,8 @@ def getHardwareInfo():
     info = []
     #info.append(getpass.getuser())  # [0]
     #info.append(platform.node())    # [0]
-    info.append(getShortName())      # [0] user input
+    #info.append(getShortName())      # [0] user input
+    info.append('<choose-one>')
     info.append(platform.platform()) # [1]
     if sys.platform == 'win32':
         info.append(getWindowCmd('wmic path win32_processor get name'))       # [2]
