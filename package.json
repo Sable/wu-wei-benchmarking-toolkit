@@ -13,7 +13,7 @@
 		"is-my-json-valid": ">=2.12.3",
 		"extend": ">= 3.0.0",
 		"hash-files": ">= 1.0.0",
-		"shelljs": ">= 0.5.3",
+		"shelljs": "0.5.3",
 		"moment": ">= 2.10.6",
 		"mathjs": ">= 2.5.0",
         "plotly": ">= 1.0.0",
