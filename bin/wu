@@ -41,9 +41,6 @@ var description = {
 }
 var parsed = nopt(knownOpts, shortHands)
 
-var hiddenDirName = '.wu'
-var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : configLib.findRootDirectoryPath(process.cwd(), hiddenDirName)
-
 if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.indexOf('help') > -1 || parsed.argv.original.length === 0) {
   if (parsed.argv.remain.length > 1) {
     var commandName = parsed.argv.remain[1]
@@ -68,7 +65,7 @@ if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.index
   console.log('Available commands: ')
   console.log(alignCommands({
     'build': 'Create a build from a configuration',
-    // 'init': 'Create an empty benchmarking repository',
+    'init': 'Create an empty benchmarking repository',
     // 'install': 'Add and initialize an artifact in the repository',
     'list': 'Find, verify, and list available artifact(s)',
     'run': 'Execute build(s) on compatible environment(s) and produce a run',
@@ -85,18 +82,21 @@ if (parsed.version || parsed.argv.remain.indexOf('version') > -1) {
   process.exit(0)
 }
 
-if (parsed.argv.remain.length < 1) {
-  console.log('no command specified')
-  process.exit(1)
-}
-
-if (suiteRoot === null) {
-  console.log('fatal: Not a benchmarking repository (or any of the parent directories): ' + hiddenDirName)
-  process.exit(1)
-}
-
 commandName = parsed.argv.remain[0]
 commandPath = path.join(__dirname, commandName)
-args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1).concat(['--root', suiteRoot])
+args = parsed.argv.original.slice(parsed.argv.original.indexOf(commandName) + 1)
+
+if (commandName !== 'init') {
+  var hiddenDirName = '.wu'
+  var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : configLib.findRootDirectoryPath(process.cwd(), hiddenDirName)
+
+  if (suiteRoot === null) {
+    console.log('fatal: Not a benchmarking repository (or any of the parent directories): ' + hiddenDirName)
+    process.exit(1)
+  }
+
+  args = args.concat(['--root', suiteRoot])
+}
+
 r = spawnSync(commandPath, args, {stdio: 'inherit'})
 process.exit(r.status)

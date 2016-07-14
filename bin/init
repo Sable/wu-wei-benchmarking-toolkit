@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+var path = require('path')
+var nopt = require('nopt')
+var noptUsage = require('nopt-usage')
+var shelljs = require('shelljs')
+var fs = require('fs')
+
+var knownOpts = {
+  'help': Boolean
+}
+var shortHands = {
+  'h': ['--help']
+}
+var description = {
+  'help': '  Display this help'
+}
+var parsed = nopt(knownOpts, shortHands, process.argv, 2)
+
+if (parsed.help) {
+  var usage = noptUsage(knownOpts, shortHands, description)
+  var executableName = path.basename(process.argv[1])
+  console.log('Usage: ' + executableName + ' [directory] [options]')
+  console.log(usage)
+  process.exit(1)
+}
+
+var dirArg = parsed.argv.remain.length > 0 ? parsed.argv.remain[0] : '.'
+var suitePath = path.resolve(process.cwd(), dirArg)
+var wuPath = path.join(path.resolve(process.cwd(), dirArg), '.wu')
+
+var exists
+try {
+  exists = fs.statSync(wuPath).isDirectory()
+} catch (e) {
+  exists = false
+}
+
+if (!exists) {
+  shelljs.mkdir(wuPath)
+  var ReadmeText = 'This is a hidden directory to maintain configuration information specific to a particular installation of the Ostrich Benchmark Suite, following the Wu Wei Benchmarking Toolking standards (https://github.com/Sable/wu-wei-benchmarking-toolkit).'
+  ReadmeText.to(path.join(wuPath, 'README.md'))
+}
+
+var silentState = shelljs.config.silent
+shelljs.config.silent = true
+shelljs.mkdir(path.join(suitePath, 'benchmarks'))
+shelljs.mkdir(path.join(suitePath, 'compilers'))
+shelljs.mkdir(path.join(suitePath, 'experiments'))
+shelljs.mkdir(path.join(suitePath, 'environments'))
+shelljs.mkdir(path.join(suitePath, 'platforms'))
+shelljs.config.silent = silentState
+
+if (exists) {
+  console.log('Reinitialized existing Wu-Wei benchmarking repository in ' + suitePath)
+} else {
+  console.log('Initialized empty Wu-Wei benchmarking repository in ' + suitePath)
+}
