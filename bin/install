@@ -1,0 +1,291 @@
+#!/usr/bin/env node
+var path = require('path')
+var nopt = require('nopt')
+var noptUsage = require('nopt-usage')
+var shelljs = require('shelljs')
+var fs = require('fs')
+var https = require('https')
+var http = require('http')
+var configLib = require(path.join(__dirname, '../lib/config.js'))
+var request = require('request')
+var tar = require('tar')
+var unzip = require('unzip')
+var zlib = require('zlib')
+var dir = require('node-dir')
+
+var registry = {
+  'ostrich': 'https://github.com/Sable/ostrich-suite'
+}
+
+var options = {
+  verbose: true,
+  'short-name': null
+}
+
+function onError (e) {
+  if (e.stack) {
+    console.log(e.stack)
+  }
+  console.log(e)
+  process.exit(1)
+}
+
+function whenVerbose (m) {
+  if (options.verbose) {
+    console.log(m)
+  }
+}
+
+function parse (id) {
+  if (id.match('^git')) {
+    return {
+      type: 'git',
+      value: id
+    }
+  } else if (id.match('^(' +
+      Object.keys(registry)
+        .map(x => x + ':')
+        .join('|') +
+      ')')) {
+    return {
+      type: 'short-name',
+      value: id
+    }
+  } else if (id.match('^http(s)?:')) {
+    return {
+      type: 'url',
+      value: id
+    }
+  } else if (!fs.accessSync(id) && id.match('\.(tar|zip|gzip|bzip|gz|bz)')) {
+    return {
+      type: 'file',
+      value: id
+    }
+  } else {
+    return null
+  }
+}
+
+var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
+var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
+
+function extractArchive (filePath) {
+  var dirPath = path.dirname(filePath)
+  return new Promise(function (resolve, reject) {
+    var stream
+    if (filePath.match('\.zip')) {
+      stream = fs
+        .createReadStream(filePath)
+        .on('error', reject)
+        .pipe(unzip.Extract({ path: dirPath }))
+    } else if (filePath.match('\.tar')) {
+      stream = fs
+        .createReadStream(filePath)
+        .on('error', reject)
+        .pipe(zlib.Unzip())
+        .pipe(tar.Extract({ path: dirPath }))
+    } else {
+      reject(new Error('No known archive extractor for file ' + filePath))
+    }
+
+    stream
+      .on('error', reject)
+      .on('end', () => {
+        whenVerbose('Extracted archive ' + filePath + '\n to ' + dirPath)
+        resolve(dirPath)
+      })
+  })
+}
+
+function fetchFileArchive (filePath, dest) {
+  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(filePath))
+  var destPath = path.join(dest, path.basename(filePath))
+  shelljs.mkdir('-p', dest)
+
+  return new Promise(function (resolve, reject) {
+    fs.createReadStream(filePath)
+      .on('error', reject)
+      .on('end', () => {
+        whenVerbose('Copied file from ' + filePath)
+        extractArchive(destPath)
+          .then(resolve, reject)
+      })
+      .pipe(fs.createWriteStream(destPath))
+  })
+}
+
+function fetchURL (url, dest) {
+  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(url))
+  var destPath = path.join(dest, path.basename(url))
+  shelljs.mkdir('-p', dest)
+
+  return new Promise(function (resolve, reject) {
+    request
+      .get(url)
+      .on('response', (res) => {
+        if (res.statusCode !== 200) {
+          onError('Invalid url (statusCode: ' + res.statusCode + ')')
+        }
+      })
+      .on('error', reject)
+      .on('end', () => {
+        whenVerbose('Downloaded file from url ' + url)
+        extractArchive(destPath)
+          .then(resolve, reject)
+      })
+      .pipe(fs.createWriteStream(destPath))
+  })
+}
+
+function fetchGit (gitPath, dest) {
+  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(gitPath))
+  shelljs.mkdir('-p', dest)
+  return new Promise(function (resolve, reject) {
+    shelljs
+      .exec('cd ' + dest + ' && git clone ' + gitPath, {silent: true}, (code, stdout, stderr) => {
+        if (code !== 0) {
+          reject(stderr)
+        }
+        whenVerbose(stdout)
+        whenVerbose('Downloaded git repository from ' + gitPath)
+        resolve(dest)
+      })
+  })
+}
+
+function fetch (id) {
+  var parsed = parse(id)
+  if (parsed.type === 'file') {
+    return fetchFileArchive(parsed.value)
+  } else if (parsed.type === 'url') {
+    return fetchURL(parsed.value)
+  } else if (parsed.type === 'git') {
+    return fetchGit(parsed.value)
+  } else if (parsed.type === 'short-name') {
+    return fetch(registry[parsed.value])
+  } else {
+    throw new Error("Invalid parse type for id '" + parsed + "'")
+  }
+}
+
+function getDescription (tmpDir) {
+  return new Promise(function (resolve, reject) {
+    dir.paths(tmpDir, function (err, paths) {
+      if (err) {
+        reject(err)
+      }
+      var regex = '(benchmark|compiler|environment|suite)\.json'
+      var descriptions = paths.files.filter(f => f.match(regex))
+      if (descriptions.length === 0) {
+        reject(new Error('No description file found (<type>.json)'))
+      }
+      if (descriptions.length > 1) {
+        reject(new Error('Artifact has more than one type: ' + descriptions.map(f => f.path)))
+      }
+
+      var type = descriptions[0].match(regex)[1]
+      whenVerbose('Validating ' + type + '.json')
+      return configLib.validateDescription(descriptions[0])
+        .then((desc) => {
+          resolve({
+            tmpDir: tmpDir,
+            type: type,
+            rootDir: path.dirname(descriptions[0]),
+            description: desc
+          })
+        })
+        .catch(reject)
+    })
+  })
+}
+
+function install (artifact) {
+  return new Promise(function (resolve, reject) {
+    // If there is a custom install script, call it
+    fs.stat(path.join(artifact.rootDir, 'install'), function (err, f) {
+      if (!err && f.isFile()) {
+        whenVerbose('Installing custom dependencies:')
+        shelljs.exec(
+          'cd ' + artifact.rootDir + ' && ./install',
+          {async: true, silent: true},
+          function (code, stdout, stderr) {
+            if (code !== 0) {
+              reject(stderr)
+            }
+            whenVerbose(stdout)
+            resolve(artifact)
+          })
+      } else {
+        // If this is a node package, install dependencies
+        fs.stat(path.join(artifact.rootDir, 'package.json'), function (err, f) {
+          if (!err && f.isFile()) {
+            whenVerbose('Installing npm dependencies:')
+            shelljs.exec(
+              'cd ' + artifact.rootDir + ' && npm install',
+              {async: true, silent: true},
+              function (code, stdout, stderr) {
+                if (code !== 0) {
+                  reject(stderr)
+                }
+                whenVerbose(stdout)
+                resolve(artifact)
+              })
+          } else {
+            resolve(artifact)
+          }
+        })
+      }
+    })
+  })
+}
+
+function move (artifact) {
+  artifact.description['short-name'] = options.shortName || artifact.description['short-name']
+  return new Promise(function (resolve, reject) {
+    var desc = artifact.description
+    var shortName = desc['short-name']
+    if (!configLib.validateShortName(shortName)) {
+      reject('Invalid short-name ' + desc['short-name'])
+    }
+
+    fs.writeFile(
+      path.join(artifact.rootDir, artifact.type + '.json'),
+      JSON.stringify(desc, null, '  '),
+      function (err) {
+        if (err) {
+          reject(err)
+        }
+        artifact.installDir = path.join(suiteRoot, artifact.type + 's', shortName)
+
+        if (shelljs.test('-e', artifact.installDir)) {
+          reject('Aborting: existing artifact in ' + artifact.installDir)
+        } else {
+          whenVerbose('Moving artifact into ' + artifact.installDir)
+          shelljs.cp('-r', path.join(artifact.rootDir, '*'), artifact.installDir)
+          resolve(artifact)
+        }
+      })
+  })
+}
+
+function cleanup (artifact) {
+  return new Promise(function (resolve, reject) {
+    whenVerbose('Cleaning up ' + artifact.tmpDir)
+    shelljs.rm('-rf', artifact.tmpDir)
+    resolve(artifact)
+  })
+}
+
+// Resolve artifact source
+// 1. File path
+// 2. Url
+// 3. Git repository
+// 4. Registry short-name (expands to one of the others)
+var id = process.argv[2]
+console.log('Installing ' + id)
+fetch(process.argv[2])
+  .then(getDescription)
+  .then(install)
+  .then(move)
+  .then(cleanup)
+  .catch(onError)
