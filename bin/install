@@ -11,15 +11,6 @@ var unzip = require('unzip')
 var zlib = require('zlib')
 var dir = require('node-dir')
 
-var registry = {
-  'ostrich': 'https://github.com/Sable/ostrich-suite'
-}
-
-var options = {
-  verbose: false,
-  'short-name': null
-}
-
 function onError (e) {
   if (e.stack) {
     console.log(e.stack)
@@ -70,7 +61,6 @@ function parse (id) {
     }
   } else if (id.match('^(' +
       Object.keys(registry)
-        .map(x => x + ':')
         .join('|') +
       ')')) {
     return {
@@ -91,9 +81,6 @@ function parse (id) {
     return null
   }
 }
-
-var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
-var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
 
 function extractArchive (filePath) {
   var dirPath = path.dirname(filePath)
@@ -181,15 +168,19 @@ function fetchGit (gitPath, dest) {
 }
 
 function fetch (id) {
+  whenVerbose('fetch(' + id + ')')
   var parsed = parse(id)
   if (parsed.type === 'file') {
+    console.log('Installing artifact from file ' + parsed.value)
     return fetchFileArchive(parsed.value)
   } else if (parsed.type === 'url') {
+    console.log('Installing artifact from url ' + parsed.value)
     return fetchURL(parsed.value)
   } else if (parsed.type === 'git') {
+    console.log('Installing artifact from git repository ' + parsed.value)
     return fetchGit(parsed.value)
   } else if (parsed.type === 'short-name') {
-    return fetch(registry[parsed.value])
+    return fetch(registry[id])
   } else {
     throw new Error("Invalid parse type for id '" + parsed + "'")
   }
@@ -366,7 +357,7 @@ function moveableArtifact (artifact) {
 
 function moveArtifact (artifact) {
   whenVerbose('Moving artifact to ' + artifact.installDir)
-  shelljs.cp('-r', path.join(artifact.rootDir, '*'), artifact.installDir)
+  shelljs.mv(path.join(artifact.rootDir), artifact.installDir)
   return artifact
 }
 
@@ -391,18 +382,47 @@ function cleanup (artifact) {
   })
 }
 
-// Resolve artifact source
-// 1. File path
-// 2. Url
-// 3. Git repository
-// 4. Registry short-name (expands to one of the others)
+var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
+var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
 
-var id = process.argv[2]
-console.log('Installing ' + id)
-fetch(process.argv[2])
+var registry = {
+  'ostrich:': 'git@github.com:Sable/ostrich-suite'
+}
+
+var knownOpts = {
+  'help': Boolean,
+  'root': String,
+  'verbose': Boolean
+}
+var shortHands = {
+  'h': ['--help'],
+  'r': ['--root'],
+  'v': ['--verbose']
+}
+var description = {
+  'help': 'Display this help',
+  'root': 'Benchmark suite root',
+  'verbose': 'Display more information'
+}
+var parsed = nopt(knownOpts, shortHands, process.argv, 2)
+
+if (parsed.help || parsed.argv.remain.length < 1) {
+  var usage = noptUsage(knownOpts, shortHands, description)
+  var executableName = path.basename(process.argv[1])
+  console.log('Usage: ' + executableName + ' <path> [options]')
+  console.log(usage)
+  process.exit(1)
+}
+
+var options = {
+  verbose: parsed.verbose || false,
+  'short-name': null
+}
+
+fetch(parsed.argv.remain[0])
   .then(getDescription)
   .then(install)
   .then(move)
   .catch(onError)
   .then(cleanup)
-  .then(exit(1))
+  .then(exit(0))
