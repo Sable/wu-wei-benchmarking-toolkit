@@ -4,8 +4,6 @@ var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
 var shelljs = require('shelljs')
 var fs = require('fs')
-var https = require('https')
-var http = require('http')
 var configLib = require(path.join(__dirname, '../lib/config.js'))
 var request = require('request')
 var tar = require('tar')
@@ -18,7 +16,7 @@ var registry = {
 }
 
 var options = {
-  verbose: true,
+  verbose: false,
   'short-name': null
 }
 
@@ -27,7 +25,12 @@ function onError (e) {
     console.log(e.stack)
   }
   console.log(e)
-  process.exit(1)
+}
+
+function exit (code) {
+  return function () {
+    process.exit(code)
+  }
 }
 
 function whenVerbose (m) {
@@ -36,11 +39,34 @@ function whenVerbose (m) {
   }
 }
 
+function barrier (promises) {
+  function resolved (v) {
+    return {'resolved': v}
+  }
+
+  function rejected (v) {
+    return {'rejected': v}
+  }
+
+  return Promise
+    .all(promises.map((p) => p.then(resolved, rejected)))
+    .then((promises) => {
+      return {
+        resolved: promises
+          .filter((o) => o.hasOwnProperty('resolved'))
+          .map((o) => o.resolved),
+        rejected: promises
+          .filter((o) => o.hasOwnProperty('rejected'))
+          .map((o) => o.rejected)
+      }
+    })
+}
+
 function parse (id) {
   if (id.match('^git')) {
     return {
       type: 'git',
-      value: id
+      value: id.replace('://', '@')
     }
   } else if (id.match('^(' +
       Object.keys(registry)
@@ -124,7 +150,7 @@ function fetchURL (url, dest) {
       .get(url)
       .on('response', (res) => {
         if (res.statusCode !== 200) {
-          onError('Invalid url (statusCode: ' + res.statusCode + ')')
+          onError('Invalid url (statusCode: ' + res.statusCode + '): ' + url)
         }
       })
       .on('error', reject)
@@ -144,11 +170,12 @@ function fetchGit (gitPath, dest) {
     shelljs
       .exec('cd ' + dest + ' && git clone ' + gitPath, {silent: true}, (code, stdout, stderr) => {
         if (code !== 0) {
-          reject(stderr)
+          reject(stdout + (stderr || ''))
+        } else {
+          whenVerbose(stdout)
+          whenVerbose('Downloaded git repository from ' + gitPath)
+          resolve(dest)
         }
-        whenVerbose(stdout)
-        whenVerbose('Downloaded git repository from ' + gitPath)
-        resolve(dest)
       })
   })
 }
@@ -199,47 +226,117 @@ function getDescription (tmpDir) {
   })
 }
 
-function install (artifact) {
+function installNodePackage (artifact) {
   return new Promise(function (resolve, reject) {
-    // If there is a custom install script, call it
-    fs.stat(path.join(artifact.rootDir, 'install'), function (err, f) {
-      if (!err && f.isFile()) {
-        whenVerbose('Installing custom dependencies:')
-        shelljs.exec(
-          'cd ' + artifact.rootDir + ' && ./install',
-          {async: true, silent: true},
-          function (code, stdout, stderr) {
-            if (code !== 0) {
-              reject(stderr)
-            }
-            whenVerbose(stdout)
-            resolve(artifact)
-          })
-      } else {
-        // If this is a node package, install dependencies
-        fs.stat(path.join(artifact.rootDir, 'package.json'), function (err, f) {
-          if (!err && f.isFile()) {
-            whenVerbose('Installing npm dependencies:')
-            shelljs.exec(
-              'cd ' + artifact.rootDir + ' && npm install',
-              {async: true, silent: true},
-              function (code, stdout, stderr) {
-                if (code !== 0) {
-                  reject(stderr)
-                }
-                whenVerbose(stdout)
-                resolve(artifact)
-              })
-          } else {
-            resolve(artifact)
-          }
-        })
-      }
-    })
+    whenVerbose('Installing npm dependencies:')
+    shelljs.exec(
+      'cd ' + artifact.rootDir + ' && npm install',
+      {async: true, silent: true},
+      function (code, stdout, stderr) {
+        if (code !== 0) {
+          reject(stderr)
+        }
+        whenVerbose(stdout)
+        resolve(artifact)
+      })
   })
 }
 
-function move (artifact) {
+function installCustom (artifact) {
+  return new Promise(function (resolve, reject) {
+    whenVerbose('Installing custom dependencies:')
+    shelljs.exec(
+      'cd ' + artifact.rootDir + ' && ./install',
+      {async: true, silent: true},
+      function (code, stdout, stderr) {
+        if (code !== 0) {
+          reject(stderr)
+        }
+        whenVerbose(stdout)
+        resolve(artifact)
+      })
+  })
+}
+
+function installArtifact (artifact) {
+  try {
+    // If this is a node package, install dependencies
+    var f = fs.statSync(path.join(artifact.rootDir, 'install'))
+    if (f.isFile()) {
+      return installCustom(artifact)
+    } else {
+      whenVerbose('Install script is not a file')
+    }
+  } catch (err) {
+    whenVerbose('Skipping install script (no install script)')
+  }
+
+  try {
+    // If this is a node package, install dependencies
+    f = fs.statSync(path.join(artifact.rootDir, 'package.json'))
+    if (f.isFile()) {
+      return installNodePackage(artifact)
+    }
+    whenVerbose('package.json is not a file')
+  } catch (err) {
+    whenVerbose('Skipping installation of package.json dependencies (no package.json file)')
+  }
+
+  whenVerbose('Did not find installable dependencies')
+  return artifact
+}
+
+function installSuite (artifact) {
+  var suite = artifact.description
+  var artifacts = []
+  var collections = [
+    'benchmarks',
+    'compilers',
+    'environments',
+    'suites'
+  ]
+
+  collections.forEach((c) => {
+    if (suite.hasOwnProperty(c)) {
+      Object.keys(suite[c])
+        .forEach((shortName) => {
+          var id = suite[c][shortName]
+          artifacts.push(
+            fetch(id)
+              .then(getDescription)
+              .then(install)
+              .catch((err) => {
+                err.id = id
+                err.shortName = shortName
+                return err
+              }))
+        })
+    }
+  })
+
+  return barrier(artifacts)
+    .then((artifacts) => {
+      artifacts.rejected.forEach((err) => {
+        console.log('Installation failed for artifact: ')
+        console.log(err.id)
+        console.log(err)
+        console.log()
+      })
+
+      return artifacts.resolved
+    })
+}
+
+function install (artifact) {
+  if (artifact.type === 'suite') {
+    return installSuite(artifact)
+  } else {
+    return installArtifact(artifact)
+  }
+}
+
+function moveableArtifact (artifact) {
+  whenVerbose('Checking whether the artifact is valid')
   artifact.description['short-name'] = options.shortName || artifact.description['short-name']
   return new Promise(function (resolve, reject) {
     var desc = artifact.description
@@ -260,18 +357,36 @@ function move (artifact) {
         if (shelljs.test('-e', artifact.installDir)) {
           reject('Aborting: existing artifact in ' + artifact.installDir)
         } else {
-          whenVerbose('Moving artifact into ' + artifact.installDir)
-          shelljs.cp('-r', path.join(artifact.rootDir, '*'), artifact.installDir)
+          whenVerbose('Artifact is ready to be moved')
           resolve(artifact)
         }
       })
   })
 }
 
+function moveArtifact (artifact) {
+  whenVerbose('Moving artifact to ' + artifact.installDir)
+  shelljs.cp('-r', path.join(artifact.rootDir, '*'), artifact.installDir)
+  return artifact
+}
+
+function move (artifacts) {
+  if (Array.prototype.isPrototypeOf(artifacts)) {
+    return Promise.all(artifacts.map(moveableArtifact)).then((artifacts) => Promise.all(artifacts.map(moveArtifact)))
+  } else {
+    return moveableArtifact(artifacts).then(moveArtifact)
+  }
+}
+
 function cleanup (artifact) {
   return new Promise(function (resolve, reject) {
-    whenVerbose('Cleaning up ' + artifact.tmpDir)
-    shelljs.rm('-rf', artifact.tmpDir)
+    whenVerbose('Cleaning up ' + wuTmpDirPath)
+
+    // Safety check to prevent automatically deleting
+    // the entire file system in case of programming error!
+    if (wuTmpDirPath.match('\.wu')) {
+      shelljs.rm('-rf', wuTmpDirPath)
+    }
     resolve(artifact)
   })
 }
@@ -281,11 +396,13 @@ function cleanup (artifact) {
 // 2. Url
 // 3. Git repository
 // 4. Registry short-name (expands to one of the others)
+
 var id = process.argv[2]
 console.log('Installing ' + id)
 fetch(process.argv[2])
   .then(getDescription)
   .then(install)
   .then(move)
-  .then(cleanup)
   .catch(onError)
+  .then(cleanup)
+  .then(exit(1))

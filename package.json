@@ -6,7 +6,7 @@
         "bt": "bin/wu"
 	},
 	"dependencies": {
-		"node-dir": ">=0.1.11",
+		"node-dir": "^0.1.15",
 		"nopt": ">=3.0.6",
 		"nopt-usage": ">=0.1.0",
 		"json-pointer": ">=0.3.0",
@@ -17,6 +17,9 @@
 		"moment": ">= 2.10.6",
 		"mathjs": ">= 2.5.0",
         "plotly": ">= 1.0.0",
-        "readline-sync": "1.x.x"
+        "readline-sync": "1.x.x",
+        "request": "^2.73.0",
+        "unzip": "^0.1.11",
+        "tar": "^2.2.1"
 	}
 }
