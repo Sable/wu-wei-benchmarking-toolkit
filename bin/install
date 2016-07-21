@@ -16,12 +16,7 @@ function onError (e) {
     console.log(e.stack)
   }
   console.log(e)
-}
-
-function exit (code) {
-  return function () {
-    process.exit(code)
-  }
+  throw e
 }
 
 function whenVerbose (m) {
@@ -54,6 +49,7 @@ function barrier (promises) {
 }
 
 function parse (id) {
+  whenVerbose('parse(' + id + ')')
   if (id.match('^git')) {
     return {
       type: 'git',
@@ -72,41 +68,44 @@ function parse (id) {
       type: 'url',
       value: id
     }
-  } else if (!fs.accessSync(id) && id.match('\.(tar|zip|gzip|bzip|gz|bz)')) {
+  } else if (!fs.accessSync(id) && id.match('\.(tar|zip|gzip|gz)')) {
     return {
       type: 'file',
       value: id
     }
   } else {
-    return null
+    throw new Error('Invalid id ' + id)
   }
 }
 
 function extractArchive (filePath) {
   var dirPath = path.dirname(filePath)
+
   return new Promise(function (resolve, reject) {
-    var stream
+    function done () {
+      whenVerbose('Extracted archive ' + filePath + '\n to ' + dirPath)
+      resolve(dirPath)
+    }
+
+    var input = fs
+      .createReadStream(filePath)
+      .on('error', reject)
+
     if (filePath.match('\.zip')) {
-      stream = fs
-        .createReadStream(filePath)
-        .on('error', reject)
+      input
         .pipe(unzip.Extract({ path: dirPath }))
-    } else if (filePath.match('\.tar')) {
-      stream = fs
-        .createReadStream(filePath)
         .on('error', reject)
+        .on('close', done)
+    } else if (filePath.match('\.tar')) {
+      input
         .pipe(zlib.Unzip())
+        .on('error', reject)
         .pipe(tar.Extract({ path: dirPath }))
+        .on('error', reject)
+        .on('end', done)
     } else {
       reject(new Error('No known archive extractor for file ' + filePath))
     }
-
-    stream
-      .on('error', reject)
-      .on('end', () => {
-        whenVerbose('Extracted archive ' + filePath + '\n to ' + dirPath)
-        resolve(dirPath)
-      })
   })
 }
 
@@ -116,14 +115,16 @@ function fetchFileArchive (filePath, dest) {
   shelljs.mkdir('-p', dest)
 
   return new Promise(function (resolve, reject) {
-    fs.createReadStream(filePath)
+    fs
+      .createReadStream(filePath)
       .on('error', reject)
-      .on('end', () => {
+      .pipe(fs.createWriteStream(destPath))
+      .on('close', () => {
         whenVerbose('Copied file from ' + filePath)
         extractArchive(destPath)
           .then(resolve, reject)
       })
-      .pipe(fs.createWriteStream(destPath))
+      .on('error', reject)
   })
 }
 
@@ -133,20 +134,18 @@ function fetchURL (url, dest) {
   shelljs.mkdir('-p', dest)
 
   return new Promise(function (resolve, reject) {
-    request
-      .get(url)
-      .on('response', (res) => {
-        if (res.statusCode !== 200) {
-          onError('Invalid url (statusCode: ' + res.statusCode + '): ' + url)
-        }
-      })
-      .on('error', reject)
-      .on('end', () => {
-        whenVerbose('Downloaded file from url ' + url)
-        extractArchive(destPath)
-          .then(resolve, reject)
-      })
-      .pipe(fs.createWriteStream(destPath))
+    var f = fs.createWriteStream(destPath)
+    f.on('close', () => {
+      whenVerbose('Downloaded file from url ' + url)
+      extractArchive(destPath)
+        .then(resolve, reject)
+    })
+    request(url, (err, res, body) => {
+      if (err || res.statusCode !== 200) {
+        whenVerbose('fetchURL error (statusCode: ' + res.statusCode + '): ' + err)
+        reject(new Error('Invalid url (statusCode: ' + res.statusCode + '): ' + url))
+      }
+    }).pipe(f)
   })
 }
 
@@ -168,8 +167,14 @@ function fetchGit (gitPath, dest) {
 }
 
 function fetch (id) {
-  whenVerbose('fetch(' + id + ')')
-  var parsed = parse(id)
+  try {
+    var parsed = parse(id)
+  } catch (e) {
+    return Promise.reject(new Error('Invalid artifact ' + id))
+  }
+
+  whenVerbose('fetch(' + id + '):')
+  whenVerbose(parsed)
   if (parsed.type === 'file') {
     console.log('Installing artifact from file ' + parsed.value)
     return fetchFileArchive(parsed.value)
@@ -287,6 +292,7 @@ function installSuite (artifact) {
     'suites'
   ]
 
+  console.log('Installing all artifacts from suite ' + artifact.description.name)
   collections.forEach((c) => {
     if (suite.hasOwnProperty(c)) {
       Object.keys(suite[c])
@@ -297,10 +303,12 @@ function installSuite (artifact) {
               .then(getDescription)
               .then(install)
               .catch((err) => {
+                whenVerbose('Error when installing ' + shortName + ' from ' + id)
                 err.id = id
                 err.shortName = shortName
-                return err
-              }))
+                return Promise.reject(err)
+              })
+          )
         })
     }
   })
@@ -342,23 +350,35 @@ function moveableArtifact (artifact) {
       function (err) {
         if (err) {
           reject(err)
-        }
-        artifact.installDir = path.join(suiteRoot, artifact.type + 's', shortName)
-
-        if (shelljs.test('-e', artifact.installDir)) {
-          reject('Aborting: existing artifact in ' + artifact.installDir)
         } else {
-          whenVerbose('Artifact is ready to be moved')
-          resolve(artifact)
+          var artifactCollectionDir = path.join(suiteRoot, artifact.type + 's')
+          if (!shelljs.test('-e', artifactCollectionDir)) {
+            shelljs.mkdir('-p', artifactCollectionDir)
+          }
+
+          artifact.installDir = path.join(artifactCollectionDir, shortName)
+          if (shelljs.test('-e', artifact.installDir)) {
+            reject(new Error('Aborting: existing artifact in ' + artifact.installDir))
+          } else {
+            whenVerbose('Artifact is ready to be moved')
+            resolve(artifact)
+          }
         }
       })
   })
 }
 
 function moveArtifact (artifact) {
-  whenVerbose('Moving artifact to ' + artifact.installDir)
-  shelljs.mv(path.join(artifact.rootDir), artifact.installDir)
-  return artifact
+  return new Promise(function (resolve, reject) {
+    whenVerbose('Moving artifact to ' + artifact.installDir)
+    fs.rename(artifact.rootDir, artifact.installDir, function (err) {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(artifact)
+      }
+    })
+  })
 }
 
 function move (artifacts) {
@@ -369,8 +389,12 @@ function move (artifacts) {
   }
 }
 
-function cleanup (artifact) {
-  return new Promise(function (resolve, reject) {
+function cleanupThenExit (exitCode) {
+  return function (err) {
+    if (err && err instanceof Error) {
+      console.log(err.message)
+    }
+
     whenVerbose('Cleaning up ' + wuTmpDirPath)
 
     // Safety check to prevent automatically deleting
@@ -378,8 +402,9 @@ function cleanup (artifact) {
     if (wuTmpDirPath.match('\.wu')) {
       shelljs.rm('-rf', wuTmpDirPath)
     }
-    resolve(artifact)
-  })
+
+    process.exit(exitCode)
+  }
 }
 
 var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
@@ -419,10 +444,28 @@ var options = {
   'short-name': null
 }
 
-fetch(parsed.argv.remain[0])
+fetch(parsed.argv.remain[0]).catch(cleanupThenExit(1))
   .then(getDescription)
   .then(install)
   .then(move)
-  .catch(onError)
-  .then(cleanup)
-  .then(exit(0))
+  .catch(onError).catch(cleanupThenExit(1))
+  .then(cleanupThenExit(0))
+
+// Graceful shutdown in case of CTRL-C
+if (process.platform === 'win32') {
+  throw new Error('Unsupported windows platform')
+/*
+var rl = require('readline').createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
+
+rl.on('SIGINT', function () {
+  process.emit('SIGINT')
+})
+*/
+}
+
+process.on('SIGINT', function () {
+  cleanupThenExit(1)()
+})
