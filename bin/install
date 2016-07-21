@@ -68,7 +68,7 @@ function parse (id) {
       type: 'url',
       value: id
     }
-  } else if (!fs.accessSync(id) && id.match('\.(tar|zip|gzip|gz)')) {
+  } else if (!fs.accessSync(id)) {
     return {
       type: 'file',
       value: id
@@ -104,7 +104,8 @@ function extractArchive (filePath) {
         .on('error', reject)
         .on('end', done)
     } else {
-      reject(new Error('No known archive extractor for file ' + filePath))
+      whenVerbose('Not a known archive, skipping extraction')
+      resolve(dirPath)
     }
   })
 }
@@ -411,7 +412,7 @@ var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
 var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
 
 var registry = {
-  'ostrich:': 'git@github.com:Sable/ostrich-suite'
+  'ostrich:': 'https://raw.githubusercontent.com/Sable/ostrich-suite/master/suite.json'
 }
 
 var knownOpts = {
