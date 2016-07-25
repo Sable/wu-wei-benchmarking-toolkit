@@ -231,7 +231,7 @@
         "implementation-format": { "$ref": "#/definitions/format" },
         "location": { "$ref": "#/definitions/absolute-path" }
       },
-      "required": ["short-name", "version", "supported-languages", "supported-formats"]
+      "required": ["type", "short-name", "version", "supported-languages", "supported-formats"]
     },
     "environment-list": {
       "type": "array",
@@ -284,17 +284,19 @@
           "type": "array",
           "items": { "type": "number" }
         }
-      }
+      },
+      "required": ["type"]
     },
     "run": {
       "type": "object",
       "properties": {
+        "type": { "type": "string", "pattern": "^run$" },
         "results": { 
           "type": "object"
         },
         "time": { "type": "number" }
       },
-      "required": ["time"]
+      "required": ["type", "time"]
     },
     "run-output": {
       "type": "object",
@@ -302,6 +304,13 @@
         "time": { "type": "number" }
       },
       "required": ["time"]
+    },
+    "suite": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "pattern": "^suite$" }
+      },
+      "require": ["type"]
     }
   },
   "config-type-name-list": [
@@ -313,7 +322,8 @@
     "implementation",
     "platform",
     "result",
-    "run"
+    "run",
+    "suite"
   ],
   "input-size-list": [
     "small",
@@ -337,6 +347,7 @@
     { "$ref": "#/definitions/experiment" },
     { "$ref": "#/definitions/environment" },
     { "$ref": "#/definitions/result"},
-    { "$ref": "#/definitions/run"}
+    { "$ref": "#/definitions/run"},
+    { "$ref": "#/definitions/suite"}
   ]
 }
