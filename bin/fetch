@@ -108,6 +108,7 @@ function extractArchive (filePath) {
             if (err) {
               reject(err)
             } else {
+              console.log('WARNING: executable permission are not set by the current zip extractor, you may need to set them manually')
               done()
             }
           })

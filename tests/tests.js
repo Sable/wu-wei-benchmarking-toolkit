@@ -17,7 +17,7 @@ function wu (cmd) {
 }
 var testRoot = path.resolve(process.cwd(), __dirname)
 
-describe('Fetch Tests', function () {
+describe('Wu-Wei Tests', function () {
   var rootTmp
   var tmp
   var options = ''
@@ -40,8 +40,13 @@ describe('Fetch Tests', function () {
   })
 
   after('Cleanup root directory', function () {
-    shelljs.rm('-rf', rootTmp)
-    server.kill()
+    if (rootTmp) {
+      shelljs.rm('-rf', rootTmp)
+    }
+
+    if (server) {
+      server.kill()
+    }
   })
 
   beforeEach('Setup test directory', function () {
@@ -58,13 +63,11 @@ describe('Fetch Tests', function () {
     wu('fetch')
   })
 
-  /*
   it('Fetch from a remote github repository', function () {
     this.timeout(0)
     wu('fetch git@github.com:Sable/ostrich-matlab-concatenate-compiler.git' + options)
     fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
   })
-  */
 
   it('Fetch artifact from a file archive on the file system', function () {
     this.timeout(0)
@@ -78,6 +81,31 @@ describe('Fetch Tests', function () {
     fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
   })
 
+  it('Build test', function () {
+    this.timeout(0)
+    wu('fetch ' + path.join(testRoot, 'public', 'fib-suite.json') + ' ' + options)
+    fs.accessSync(path.join(tmp, 'compilers', 'gcc', 'compiler.json'))
+    fs.accessSync(path.join(tmp, 'benchmarks', 'fib', 'benchmark.json'))
+    fs.accessSync(path.join(tmp, 'benchmarks', 'fib', 'implementations', 'c', 'implementation.json'))
+    fs.accessSync(path.join(tmp, 'environments', 'native', 'environment.json'))
+    wu('build -v ')
+  })
+
+  it('End-to-end test', function () {
+    this.timeout(10000)
+    wu('fetch ' + path.join(testRoot, 'public', 'fib-suite.json') + ' ' + options)
+    fs.accessSync(path.join(tmp, 'compilers', 'gcc', 'compiler.json'))
+    fs.accessSync(path.join(tmp, 'benchmarks', 'fib', 'benchmark.json'))
+    fs.accessSync(path.join(tmp, 'benchmarks', 'fib', 'implementations', 'c', 'implementation.json'))
+    fs.accessSync(path.join(tmp, 'environments', 'native', 'environment.json'))
+    wu('platform --save --short-name test')
+    wu('list')
+    wu('run')
+    wu('report')
+  })
+
+/* 
+  // TODO: Add support for recursive dependencies
   it('Fetch benchmark from a file archive', function () {
     this.timeout(0)
     wu('fetch -v ' + path.join(testRoot, 'public', 'backprop-benchmark.zip') + ' ' + options)
@@ -85,5 +113,5 @@ describe('Fetch Tests', function () {
     fs.accessSync(path.join(tmp, 'benchmarks', 'backprop', 'implementations', 'c', 'implementation.json'))
     fs.accessSync(path.join(tmp, 'benchmarks', 'backprop', 'implementations', 'c', 'common', 'common.h'))
   })
-
+  */
 })

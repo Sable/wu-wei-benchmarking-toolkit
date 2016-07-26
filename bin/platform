@@ -2,6 +2,8 @@
 import platform
 import sys
 import os
+import getopt
+from subprocess import call
 
 def getInfo():
     info = getHardwareInfo()
@@ -37,8 +39,7 @@ def getHardwareInfo():
     info = []
     #info.append(getpass.getuser())  # [0]
     #info.append(platform.node())    # [0]
-    #info.append(getShortName())      # [0] user input
-    info.append('<choose-one>')
+    info.append(getShortName())      # [0] user input
     info.append(platform.platform()) # [1]
     if sys.platform == 'win32':
         info.append(getWindowCmd('wmic path win32_processor get name'))       # [2]
@@ -138,6 +139,9 @@ def getArc(a):
 
 # ask user input
 def getShortName():
+    if options['short-name'] != None:
+        return options['short-name']
+
     oldout     = sys.stdout
     sys.stdout = sys.stderr # set temporary output
     shortname  = trimShort(raw_input(
@@ -152,6 +156,27 @@ def prettyPrint(s):
         print item
 
 if __name__ == '__main__':
+    options = {
+        'short-name': None,
+        'root': None,
+        'save': False
+    }
+
+    argv = sys.argv[1:]
+    try:
+        opts, args = getopt.getopt(argv, "n:r:s", ["short-name=", "root=", "save"])
+        for opt, arg in opts:
+            if opt in ("-n", "--short-name"):
+                options['short-name'] = arg
+            elif opt in ("-s", "--save"):
+                options['save'] = True
+            elif opt in ("-r", "--root"):
+                options['root'] = arg
+    except getopt.GetoptError as e:
+        print e
+        sys.exit(1)
+
+
     #print platform.platform()
     #print platform.uname()
     #print platform.version()
@@ -160,7 +185,14 @@ if __name__ == '__main__':
     #print platform.processor()    # i386
     #print platform.architecture() # ('64bit', '')
     #print platform.system()       # Darwin
-    prettyPrint(getInfo())
+    info = getInfo()
+    prettyPrint(info)
+    if options['short-name'] != None and options['save'] and options['root'] != None:
+        dirPath = os.path.join(options['root'], 'platforms', options['short-name'])
+        call(['mkdir', '-p', dirPath])
+        open(os.path.join(dirPath, 'platform.json'), 'w').write("\n".join(info))
+
+
 
 # wmic list
 # http://superuser.com/questions/331220/wmic-path-what-wmic-class-what
