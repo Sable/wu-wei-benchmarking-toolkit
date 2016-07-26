@@ -224,7 +224,7 @@
         "supported-formats": { "$ref": "#/definitions/format-list" },
         "environments": { "$ref": "#/definitions/environment-list" }
       },
-      "required": ["type", "short-name", "cpu", "memory", "os", "environments"]
+      "required": ["type", "short-name", "cpu", "memory", "os"]
     },
     "platform-list": {
       "type": "array",
@@ -308,7 +308,7 @@
         },
         "time": { "type": "number" }
       },
-      "required": ["type", "time"]
+      "required": ["time"]
     },
     "run-output": {
       "type": "object",
