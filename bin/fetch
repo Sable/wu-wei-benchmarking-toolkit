@@ -7,10 +7,9 @@ var fs = require('fs')
 var configLib = require(path.join(__dirname, '../lib/config.js'))
 var request = require('request')
 var tar = require('tar')
-var unzip = require('unzip')
+var StreamZip = require('node-stream-zip')
 var zlib = require('zlib')
 var dir = require('node-dir')
-var temp = require('temp').track() // Automatic cleanup on exit
 
 function onError (e) {
   if (e.stack) {
@@ -99,17 +98,24 @@ function extractArchive (filePath) {
       resolve(dirPath)
     }
 
-    var input = fs
-      .createReadStream(filePath)
-      .on('error', reject)
-
     if (filePath.match('\.zip')) {
-      input
-        .pipe(unzip.Extract({ path: dirPath }))
+      var zip = new StreamZip({
+        file: filePath
+      })
         .on('error', reject)
-        .on('close', done)
+        .on('ready', () => {
+          zip.extract(null, dirPath, (err, count) => {
+            if (err) {
+              reject(err)
+            } else {
+              done()
+            }
+          })
+        })
     } else if (filePath.match('\.tar')) {
-      input
+      fs
+        .createReadStream(filePath)
+        .on('error', reject)
         .pipe(zlib.Unzip())
         .on('error', reject)
         .pipe(tar.Extract({ path: dirPath }))
@@ -154,9 +160,9 @@ function fetchURL (url, dest) {
         .then(resolve, reject)
     })
     request(url, (err, res, body) => {
-      if (err || res.statusCode !== 200) {
-        whenVerbose('fetchURL error (statusCode: ' + res.statusCode + '): ' + err)
-        reject(new Error('Invalid url (statusCode: ' + res.statusCode + '): ' + url))
+      if (err || !res || res.statusCode !== 200) {
+        whenVerbose('fetchURL error ' + err)
+        reject('Invalid url: ' + url)
       }
     }).pipe(f)
   })
@@ -179,7 +185,7 @@ function fetchGit (gitPath, dest) {
   })
 }
 
-function fetch (parsed) {
+function fetchRemote (parsed) {
   if (!parsed.type) {
     return Promise.reject(new Error('Invalid parsed ' + parsed))
   }
@@ -199,6 +205,7 @@ function fetch (parsed) {
 }
 
 function getInstallable (tmpDir) {
+  whenVerbose('getInstallable(' + tmpDir + ')')
   return new Promise(function (resolve, reject) {
     dir.paths(tmpDir, function (err, paths) {
       if (err) {
@@ -212,6 +219,7 @@ function getInstallable (tmpDir) {
           tmpDir: tmpDir,
           type: null,
           rootDir: tmpDir,
+          destination: tmpDir,
           description: null
         })
       }
@@ -223,133 +231,97 @@ function getInstallable (tmpDir) {
 
       Promise.all(descriptionPaths.map((descriptionPath) => {
         return configLib.validateDescription(descriptionPath)
-      })).catch(reject)
-        .then((descriptions) => {
-          var description = descriptions[0]
-          var type = description.type
-          var descriptionPath = descriptionPaths[0]
-          resolve({
-            tmpDir: tmpDir,
-            type: type,
-            rootDir: path.dirname(descriptionPath),
-            description: description,
-            otherDescriptions: descriptions.slice(1)
+          .then((description) => {
+            whenVerbose('Description at ' + descriptionPath + ' is ')
+            whenVerbose(description)
+            return {
+              tmpDir: tmpDir,
+              type: description.type,
+              rootDir: path.dirname(descriptionPath),
+              destination: path.dirname(descriptionPath),
+              description: description,
+              otherInstallables: []
+            }
           })
+      })).catch(reject)
+        .then((installables) => {
+          var installable = installables[0]
+          installable.destination = null
+          installable.otherInstallables = installables.slice(1)
+          resolve(installable)
         })
     })
   })
 }
 
-function installNodePackage (artifact) {
-  return new Promise(function (resolve, reject) {
-    try {
-      // If this is a node package, install dependencies
-      var f = fs.statSync(path.join(artifact.rootDir, 'install'))
-      if (f.isFile()) {
-        whenVerbose('Installing npm dependencies:')
-        shelljs.exec(
-          'cd ' + artifact.rootDir + ' && npm install',
-          {async: true, silent: true},
-          function (code, stdout, stderr) {
-            if (code !== 0) {
-              return reject(stderr)
-            }
-            whenVerbose(stdout)
-            return resolve(artifact)
-          })
-      } else {
-        whenVerbose('Install script is not a file')
-      }
-    } catch (err) {
-      whenVerbose('Skipping install script (no install script)')
+function fetchDescriptionDependencies (options) {
+  return function (installable) {
+    if (!installable.type) {
+      return Promise.resolve(installable)
     }
 
-    return resolve(artifact)
-  })
-}
-
-function installCustom (artifact) {
-  return new Promise(function (resolve, reject) {
-    try {
-      // If this is a node package, install dependencies
-      var f = fs.statSync(path.join(artifact.rootDir, 'install'))
-      if (f.isFile()) {
-        whenVerbose('Installing custom dependencies:')
-        shelljs.exec(
-          'cd ' + artifact.rootDir + ' && ./install',
-          {async: true, silent: true},
-          function (code, stdout, stderr) {
-            if (code !== 0) {
-              return reject(stderr)
-            }
-            whenVerbose(stdout)
-            return resolve(artifact)
-          })
-      } else {
-        whenVerbose('Install script is not a file')
-      }
-    } catch (err) {
-      whenVerbose('Skipping install script (no install script)')
-    }
-
-    return resolve(artifact)
-  })
-}
-
-function installDescriptionDependencies (artifact) {
-  // If the artifact description specifies explicit dependencies,
-  // install them
-  var description = artifact.description
-  if (description.hasOwnProperty('dependencies')) {
-    return Promise.all(Object.keys(description.dependencies).map((destination) => {
-      if (!configLib.isRelativePath(destination)) {
-        return Promise.reject(new Error(
-          'Invalid relative path ' + destination + ' in ' +
-          description.type + ' ' +
-          description['short-name'] +
-          ' dependency '))
-      }
-      var id = description.dependencies[destination]
-      return install(
-        id,
-        {
-          destination: path.join(artifact.rootDir, destination)
-        })
-    }))
-  } else {
-    return artifact
-  }
-}
-
-function fetchBenchmarkImplementations (artifact) {
-  var description = artifact.description
-  // If the artifact is a benchmark, recursively install the implementations
-  if (description.type === 'benchmark') {
-    if (description.hasOwnProperty('implementations')) {
-      shelljs.mkdir('-p', path.join(artifact.rootDir, 'implementations'))
-
-      return Promise.all(Object.keys(description.implementations).map((shortName) => {
-        if (!configLib.validateShortName(shortName)) {
+    whenVerbose('fetchDescriptionDependencies(' + JSON.stringify(installable) + ')')
+    // If the artifact description specifies explicit dependencies,
+    // install them
+    var description = installable.description
+    if (description.hasOwnProperty('dependencies')) {
+      return Promise.all(Object.keys(description.dependencies).map((destination) => {
+        if (!configLib.isRelativePath(destination)) {
           return Promise.reject(new Error(
-            'Invalid implementation short-name ' + shortName +
-            ' in benchmark ' + description['short-name']))
+            'Invalid relative path ' + destination + ' in ' +
+            description.type + ' ' +
+            description['short-name'] +
+            ' dependency '))
         }
-
-        return install(
-          description.implementations[shortName],
-          { destination: path.join(artifact.rootDir, 'implementations', shortName),
-            'short-name': shortName
+        var id = description.dependencies[destination]
+        return fetch(
+          id,
+          {
+            destination: path.join(installable.rootDir, destination)
           })
-      })).then(Promise.resolve(artifact))
+      })).then((dependencies) => Promise.resolve(installable))
     } else {
-      return artifact
+      return Promise.resolve(installable)
     }
-  } else {
-    return artifact
   }
 }
 
-function installSuiteDependencies (artifact) {
+function fetchBenchmarkImplementations (options) {
+  return function (installable) {
+    if (!installable.type) {
+      return Promise.resolve(installable)
+    }
+
+    whenVerbose('fetchBenchmarkImplementations(' + JSON.stringify(installable) + ')')
+    var description = installable.description
+    // If the installable is a benchmark, recursively install the implementations
+    if (description.type === 'benchmark') {
+      if (description.hasOwnProperty('implementations')) {
+        shelljs.mkdir('-p', path.join(installable.rootDir, 'implementations'))
+
+        return Promise.all(Object.keys(description.implementations).map((shortName) => {
+          if (!configLib.validateShortName(shortName)) {
+            return Promise.reject(new Error(
+              'Invalid implementation short-name ' + shortName +
+              ' in benchmark ' + description['short-name']))
+          }
+
+          return fetch(
+            description.implementations[shortName],
+            { destination: path.join(installable.rootDir, 'implementations', shortName),
+              'short-name': shortName
+            })
+        })).then(Promise.resolve(installable))
+      } else {
+        return Promise.resolve(installable)
+      }
+    } else {
+      return Promise.resolve(installable)
+    }
+  }
+}
+
+function fetchSuiteDependencies (artifact, options) {
   var suite = artifact.description
   var artifacts = []
   var collections = [
@@ -359,19 +331,17 @@ function installSuiteDependencies (artifact) {
     'suites'
   ]
 
-  console.log('Installing all artifacts from suite ' + artifact.description.name)
+  console.log('Fetching all artifacts from suite ' + artifact.description.name)
   collections.forEach((c) => {
     if (suite.hasOwnProperty(c)) {
       Object.keys(suite[c])
         .forEach((shortName) => {
           var id = suite[c][shortName]
           artifacts.push(
-            install(id, { 'short-name': shortName })
+            fetch(id, { 'short-name': shortName })
               .catch((err) => {
-                whenVerbose('Error when installing dependency ' + shortName + ' from ' + id)
-                err.id = id
-                err.shortName = shortName
-                return Promise.reject(err)
+                whenVerbose('Error when fetching dependency ' + shortName + ' from ' + id)
+                return Promise.reject({id: id, shortName: shortName, msg: err})
               })
           )
         })
@@ -381,28 +351,48 @@ function installSuiteDependencies (artifact) {
   return barrier(artifacts)
     .then((artifacts) => {
       artifacts.rejected.forEach((err) => {
-        console.log('Installation failed for artifact: ')
+        console.log('Fetching failed for artifact: ')
         console.log(err.id)
-        console.log(err)
+        console.log(err.msg)
         console.log()
       })
 
-      return artifacts.resolved
+      return artifact
     })
 }
 
-function installDependencies (installable) {
-  if (installable.type === 'suite') {
-    return installSuiteDependencies(installable)
-  } else if (installable.type === null) {
-    return Promise.resolve(installable)
-      .then(installNodePackage)
-      .then(installCustom)
-  } else {
-    return Promise.resolve(installable)
-      .then(installNodePackage)
-      .then(installCustom)
-      .then(installDescriptionDependencies)
+function fetchOtherArtifacts (options) {
+  return function (installable) {
+    whenVerbose('fetchOtherArtifacts(' + JSON.stringify(installable) + ')')
+    return Promise.all(installable.otherInstallables.map((installable) => {
+      return fetch(installable.rootDir, options)
+    })).then((installables) => {
+      return installable
+    })
+  }
+}
+
+function fetchDependencies (options) {
+  return function (installable) {
+    whenVerbose('fetchDependencies(' + JSON.stringify(installable) + ')')
+    if (!installable.type) {
+      whenVerbose('Not a wu-wei artifact, skipping dependencies')
+      return installable
+    }
+
+    if (installable.type === 'suite') {
+      return fetchSuiteDependencies(installable, options)
+        .then(validateArtifact(options))
+    } else {
+      return fetchBenchmarkImplementations(options)(installable)
+        .then(fetchDescriptionDependencies(options))
+        .then((installable) => {
+          whenVerbose('fetchDependencies ' + JSON.stringify(installable))
+          return getInstallable(installable.rootDir)
+        })
+        .then(fetchOtherArtifacts(options))
+        .then(validateArtifact(options))
+    }
   }
 }
 
@@ -412,9 +402,13 @@ function validateArtifact (options) {
     artifact.description['short-name'] = options.shortName || artifact.description['short-name']
     return new Promise(function (resolve, reject) {
       var desc = artifact.description
+      if (!desc['short-name']) {
+        return reject('No short-name provided in artifact description')
+      }
+
       var shortName = desc['short-name']
-      if (!configLib.validateShortName(shortName)) {
-        reject('Invalid short-name ' + desc['short-name'])
+      if (shortName === undefined || !configLib.validateShortName(shortName)) {
+        return reject('Invalid short-name ' + desc['short-name'])
       }
 
       fs.writeFile(
@@ -424,7 +418,7 @@ function validateArtifact (options) {
           if (err) {
             reject(err)
           } else {
-            if (!artifact.hasOwnProperty('destination')) {
+            if (!artifact.destination) {
               var artifactCollectionDir = path.join(suiteRoot, artifact.type + 's')
               if (!shelljs.test('-e', artifactCollectionDir)) {
                 shelljs.mkdir('-p', artifactCollectionDir)
@@ -453,6 +447,11 @@ function move (installable) {
 
     if (!installable.destination) {
       return reject(new Error('No installation directory specified for ' + JSON.stringify(installable)))
+    }
+
+    if (installable.rootDir === installable.destination) {
+      whenVerbose('Installable already in its final destination ' + JSON.stringify(installable))
+      return resolve(installable)
     }
 
     if (shelljs.test('-e', installable.destination)) {
@@ -488,15 +487,7 @@ function cleanupThenExit (exitCode) {
   }
 }
 
-function installArtifact (options) {
-  return function (tmpDir) {
-    return getInstallable(tmpDir)
-      .then(installDependencies(options))
-      .then(validateArtifact(options))
-  }
-}
-
-function install (id, options) {
+function fetch (id, options) {
   whenVerbose('parse(' + id + '):')
   try {
     var parsed = parse(id)
@@ -505,42 +496,32 @@ function install (id, options) {
   }
   whenVerbose(parsed)
 
-  whenVerbose('fetch(' + parsed + ')')
-
   if (parsed.type === 'url' ||
     parsed.type === 'git' ||
     parsed.type === 'file') {
-    return fetch(parsed.value)
+    return fetchRemote(parsed)
       .then(getInstallable)
+      .then(fetchDependencies(options))
       .then((installable) => {
-        if (installable.type) {
-          return Promise.resolve(installable)
-            .then(installArtifact(options))
-            .then(move)
-        } else {
-          if (!options.destination) {
-            return Promise.reject(new Error('No installation path specified for ' + parsed.value))
-          }
-
+        if (!installable.destination && options.destination) {
           installable.destination = options.destination
-          return Promise.resolve(installable)
-            .then(move)
+        } else if (!installable.destination && !options.destination) {
+          return Promise.reject(new Error('No installation path specified for ' + parsed.value))
         }
+
+        return Promise.resolve(installable)
+          .then(move)
       })
   } else if (parsed.type === 'short-name') {
-    return install(parsed.value, options)
+    return fetch(registry[parsed.value], options)
   } else if (parsed.type === 'directory') {
     var dirPath = path.resolve(process.cwd(), parsed.value)
 
     if (options.verbose || !parsed.value.match('.wu')) {
-      console.log('Installing in directory ' + parsed.value)
-
-      if (!dirPath.match(suiteRoot) && !dirPath.match('(benchmarks|compilers|environments)')) {
-        console.log('WARNING: Installing artifact from non-standard path, other Wu-Wei tools may not recognize the artifact')
-      }
+      console.log('Fetching dependencies in directory ' + parsed.value)
     }
     return getInstallable(dirPath)
-      .then(installArtifact(options))
+      .then(fetchDependencies(options))
   } else {
     throw new Error('Invalid parse type ' + parsed.type)
   }
@@ -550,7 +531,7 @@ var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
 var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
 
 var registry = {
-  'ostrich:': 'https://raw.githubusercontent.com/Sable/ostrich-suite/master/suite.json',
+  'ostrich': 'https://raw.githubusercontent.com/Sable/ostrich-suite/master/suite.json',
   'backprop': '/Users/erick/Documents/Recherche/backprop-benchmark.zip',
   'c-commons': '/Users/erick/Documents/Recherche/ostrich-c-implementation-common.zip'
 }
@@ -586,10 +567,9 @@ var options = {
 }
 
 var id = parsed.argv.remain.length > 0 ? parsed.argv.remain[0] : process.cwd()
-console.log(parse(id))
-// install(id, options)
-//  .catch(onError).catch(cleanupThenExit(1))
-//  .then(cleanupThenExit(0))
+fetch(id, options)
+  .catch(onError).catch(cleanupThenExit(1))
+  .then(cleanupThenExit(0))
 
 // Graceful shutdown in case of CTRL-C
 if (process.platform === 'win32') {
@@ -607,6 +587,6 @@ rl.on('SIGINT', function () {
 }
 
 process.on('SIGINT', function () {
-  temp.cleanupSync()
+  // temp.cleanupSync()
   cleanupThenExit(1)()
 })
