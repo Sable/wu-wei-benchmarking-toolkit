@@ -3,7 +3,6 @@ var path = require('path')
 var configLib = require(path.join(__dirname, '../lib/config.js'))
 var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
-var fs = require('fs')
 var knownOpts = {
   'output-config': Boolean,
   'root': String,

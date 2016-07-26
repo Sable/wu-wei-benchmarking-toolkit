@@ -424,7 +424,7 @@ configLib.config(suiteRoot, function (err, config) {
     shelljs.config.silent = true
     shelljs.mkdir('-p', reportDirPath)
     shelljs.pushd(reportDirPath)
-    htmlReport.to(htmlReportPath)
+    fs.writeFileSync(htmlReportPath, htmlReport)
     shelljs.config.silent = silentState
 
     console.log(htmlReportPath)

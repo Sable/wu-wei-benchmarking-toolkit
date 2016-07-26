@@ -172,6 +172,6 @@ configLib.config(suiteRoot, function (err, config) {
   var dir = path.join(suiteRoot, 'runs', run.time)
   shelljs.mkdir('-p', dir)
   shelljs.ln('-s', dir, path.join(suiteRoot, 'runs', 'latest'))
-  JSON.stringify(run, null, '  ').to(path.join(dir, 'run.json'))
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(run, null, '  '))
   shelljs.config.silent = silentState
 })
