@@ -3,6 +3,7 @@ var path = require('path')
 var configLib = require(path.join(__dirname, '../lib/config.js'))
 var nopt = require('nopt')
 var noptUsage = require('nopt-usage')
+var pointer = require('json-pointer')
 var knownOpts = {
   'output-config': Boolean,
   'root': String,
@@ -11,12 +12,14 @@ var knownOpts = {
 var shortHands = {
   'h': ['--help'],
   'o': ['--output-config'],
-  'r': ['--root']
+  'r': ['--root'],
+  'v': ['--verbose']
 }
 var description = {
   'help': 'Display this help',
   'output-config': 'Output the JSON configuration on the standard output',
-  'root': 'Benchmark suite root'
+  'root': 'Benchmark suite root',
+  'verbose': 'Verbose output'
 }
 var parsed = nopt(knownOpts, shortHands, process.argv, 2)
 
