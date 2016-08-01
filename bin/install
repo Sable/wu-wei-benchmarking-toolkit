@@ -118,7 +118,15 @@ if (parsed.help) {
 } else {
   let installer = new install.Installer(options)
 
-  let f = installer.fetch(parseCommandLineArguments(parsed))
+  let f = installer
+    .fetch(parseCommandLineArguments(parsed))
+    .then((dependency) => {
+      if (dependency.destination && installer.exists(dependency)) {
+        return Promise.reject(new Error('Directory ' + dependency.destination + ' already exists, aborting'))
+      } else {
+        return Promise.resolve(dependency)
+      }
+    })
   if (parsed.verbose) {
     f.then(console.log)
       .catch(onError).catch(cleanupThenExit(1))
