@@ -1,16 +1,19 @@
 #!/usr/bin/env node
-var path = require('path')
-var nopt = require('nopt')
-var noptUsage = require('nopt-usage')
-var shelljs = require('shelljs')
-var fs = require('fs')
-var configLib = require(path.join(__dirname, '../lib/config.js'))
-var request = require('request')
-var tar = require('tar')
-var unzip = require('unzip')
-var zlib = require('zlib')
-var dir = require('node-dir')
-var temp = require('temp').track() // Automatic cleanup on exit
+let path = require('path')
+let nopt = require('nopt')
+let noptUsage = require('nopt-usage')
+let shelljs = require('shelljs')
+let fs = require('fs')
+let configLib = require(path.join(__dirname, '../lib/config.js'))
+let request = require('request')
+let tar = require('tar')
+let StreamZip = require('node-stream-zip')
+let zlib = require('zlib')
+let dir = require('node-dir')
+let pointer = require('json-pointer')
+let suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
+let wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
+let install = require(path.join(__dirname, '..', 'lib', 'install.js'))
 
 function onError (e) {
   if (e.stack) {
@@ -24,450 +27,6 @@ function whenVerbose (m) {
   if (options.verbose) {
     console.log(m)
   }
-}
-
-function barrier (promises) {
-  function resolved (v) {
-    return {'resolved': v}
-  }
-
-  function rejected (v) {
-    return {'rejected': v}
-  }
-
-  return Promise
-    .all(promises.map((p) => p.then(resolved, rejected)))
-    .then((promises) => {
-      return {
-        resolved: promises
-          .filter((o) => o.hasOwnProperty('resolved'))
-          .map((o) => o.resolved),
-        rejected: promises
-          .filter((o) => o.hasOwnProperty('rejected'))
-          .map((o) => o.rejected)
-      }
-    })
-}
-
-function parse (id) {
-  whenVerbose('parse(' + id + ')')
-
-  if (id.match('^git')) {
-    return {
-      type: 'git',
-      value: id.replace('://', '@')
-    }
-  } else if (id.match('^(' +
-      Object.keys(registry)
-        .join('|') +
-      ')')) {
-    return {
-      type: 'short-name',
-      value: id
-    }
-  } else if (id.match('^http(s)?:')) {
-    return {
-      type: 'url',
-      value: id
-    }
-  } else if (!fs.accessSync(id)) {
-    var stat = fs.statSync(id)
-    if (stat.isFile()) {
-      return {
-        type: 'file',
-        value: id
-      }
-    } else if (stat.isDirectory()) {
-      return {
-        type: 'directory',
-        value: id
-      }
-    } else {
-      throw new Error('Invalid id ' + id)
-    }
-  } else {
-    throw new Error('Invalid id ' + id)
-  }
-}
-
-function extractArchive (filePath) {
-  var dirPath = path.dirname(filePath)
-
-  return new Promise(function (resolve, reject) {
-    function done () {
-      whenVerbose('Extracted archive ' + filePath + '\n to ' + dirPath)
-      resolve(dirPath)
-    }
-
-    var input = fs
-      .createReadStream(filePath)
-      .on('error', reject)
-
-    if (filePath.match('\.zip')) {
-      input
-        .pipe(unzip.Extract({ path: dirPath }))
-        .on('error', reject)
-        .on('close', done)
-    } else if (filePath.match('\.tar')) {
-      input
-        .pipe(zlib.Unzip())
-        .on('error', reject)
-        .pipe(tar.Extract({ path: dirPath }))
-        .on('error', reject)
-        .on('end', done)
-    } else {
-      whenVerbose('Not a known archive, skipping extraction')
-      resolve(dirPath)
-    }
-  })
-}
-
-function fetchFile (filePath, dest) {
-  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(filePath))
-  var destPath = path.join(dest, path.basename(filePath))
-  shelljs.mkdir('-p', dest)
-
-  return new Promise(function (resolve, reject) {
-    fs
-      .createReadStream(filePath)
-      .on('error', reject)
-      .pipe(fs.createWriteStream(destPath))
-      .on('close', () => {
-        whenVerbose('Copied file from ' + filePath)
-        extractArchive(destPath)
-          .then(resolve, reject)
-      })
-      .on('error', reject)
-  })
-}
-
-function fetchURL (url, dest) {
-  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(url))
-  var destPath = path.join(dest, path.basename(url))
-  shelljs.mkdir('-p', dest)
-
-  return new Promise(function (resolve, reject) {
-    var f = fs.createWriteStream(destPath)
-    f.on('close', () => {
-      whenVerbose('Downloaded file from url ' + url)
-      extractArchive(destPath)
-        .then(resolve, reject)
-    })
-    request(url, (err, res, body) => {
-      if (err || res.statusCode !== 200) {
-        whenVerbose('fetchURL error (statusCode: ' + res.statusCode + '): ' + err)
-        reject(new Error('Invalid url (statusCode: ' + res.statusCode + '): ' + url))
-      }
-    }).pipe(f)
-  })
-}
-
-function fetchGit (gitPath, dest) {
-  dest = dest || path.join(wuTmpDirPath, configLib.computeDirectoryName(gitPath))
-  shelljs.mkdir('-p', dest)
-  return new Promise(function (resolve, reject) {
-    shelljs
-      .exec('cd ' + dest + ' && git clone --recursive ' + gitPath, {silent: true}, (code, stdout, stderr) => {
-        if (code !== 0) {
-          reject(stdout + (stderr || ''))
-        } else {
-          whenVerbose(stdout)
-          whenVerbose('Downloaded git repository from ' + gitPath)
-          resolve(dest)
-        }
-      })
-  })
-}
-
-function fetch (parsed) {
-  if (!parsed.type) {
-    return Promise.reject(new Error('Invalid parsed ' + parsed))
-  }
-
-  if (parsed.type === 'url') {
-    console.log('Installing from url ' + parsed.value)
-    return fetchURL(parsed.value)
-  } else if (parsed.type === 'git') {
-    console.log('Installing from git repository ' + parsed.value)
-    return fetchGit(parsed.value)
-  } else if (parsed.type === 'file') {
-    console.log('Installing from file ' + parsed.value)
-    return fetchFile(parsed.value)
-  } else {
-    return Promise.reject(new Error('Nothing to fetch for parsed.type ' + parsed.type))
-  }
-}
-
-function getInstallable (tmpDir) {
-  return new Promise(function (resolve, reject) {
-    dir.paths(tmpDir, function (err, paths) {
-      if (err) {
-        reject(err)
-      }
-      var regex = '(benchmark|compiler|environment|implementation|suite)\.json'
-      var descriptionPaths = paths.files.filter(f => f.match(regex))
-      if (descriptionPaths.length === 0) {
-        whenVerbose('No description file found in ' + tmpDir)
-        return resolve({
-          tmpDir: tmpDir,
-          type: null,
-          rootDir: tmpDir,
-          description: null
-        })
-      }
-
-      // Find the description file closest to the installable root directory
-      descriptionPaths.sort(function (a, b) {
-        return a.length - b.length
-      })
-
-      Promise.all(descriptionPaths.map((descriptionPath) => {
-        return configLib.validateDescription(descriptionPath)
-      })).catch(reject)
-        .then((descriptions) => {
-          var description = descriptions[0]
-          var type = description.type
-          var descriptionPath = descriptionPaths[0]
-          resolve({
-            tmpDir: tmpDir,
-            type: type,
-            rootDir: path.dirname(descriptionPath),
-            description: description,
-            otherDescriptions: descriptions.slice(1)
-          })
-        })
-    })
-  })
-}
-
-function installNodePackage (artifact) {
-  return new Promise(function (resolve, reject) {
-    try {
-      // If this is a node package, install dependencies
-      var f = fs.statSync(path.join(artifact.rootDir, 'install'))
-      if (f.isFile()) {
-        whenVerbose('Installing npm dependencies:')
-        shelljs.exec(
-          'cd ' + artifact.rootDir + ' && npm install',
-          {async: true, silent: true},
-          function (code, stdout, stderr) {
-            if (code !== 0) {
-              return reject(stderr)
-            }
-            whenVerbose(stdout)
-            return resolve(artifact)
-          })
-      } else {
-        whenVerbose('Install script is not a file')
-      }
-    } catch (err) {
-      whenVerbose('Skipping install script (no install script)')
-    }
-
-    return resolve(artifact)
-  })
-}
-
-function installCustom (artifact) {
-  return new Promise(function (resolve, reject) {
-    try {
-      // If this is a node package, install dependencies
-      var f = fs.statSync(path.join(artifact.rootDir, 'install'))
-      if (f.isFile()) {
-        whenVerbose('Installing custom dependencies:')
-        shelljs.exec(
-          'cd ' + artifact.rootDir + ' && ./install',
-          {async: true, silent: true},
-          function (code, stdout, stderr) {
-            if (code !== 0) {
-              return reject(stderr)
-            }
-            whenVerbose(stdout)
-            return resolve(artifact)
-          })
-      } else {
-        whenVerbose('Install script is not a file')
-      }
-    } catch (err) {
-      whenVerbose('Skipping install script (no install script)')
-    }
-
-    return resolve(artifact)
-  })
-}
-
-function installDescriptionDependencies (artifact) {
-  // If the artifact description specifies explicit dependencies,
-  // install them
-  var description = artifact.description
-  if (description.hasOwnProperty('dependencies')) {
-    return Promise.all(Object.keys(description.dependencies).map((destination) => {
-      if (!configLib.isRelativePath(destination)) {
-        return Promise.reject(new Error(
-          'Invalid relative path ' + destination + ' in ' +
-          description.type + ' ' +
-          description['short-name'] +
-          ' dependency '))
-      }
-      var id = description.dependencies[destination]
-      return install(
-        id,
-        {
-          destination: path.join(artifact.rootDir, destination)
-        })
-    }))
-  } else {
-    return artifact
-  }
-}
-
-function fetchBenchmarkImplementations (artifact) {
-  var description = artifact.description
-  // If the artifact is a benchmark, recursively install the implementations
-  if (description.type === 'benchmark') {
-    if (description.hasOwnProperty('implementations')) {
-      shelljs.mkdir('-p', path.join(artifact.rootDir, 'implementations'))
-
-      return Promise.all(Object.keys(description.implementations).map((shortName) => {
-        if (!configLib.validateShortName(shortName)) {
-          return Promise.reject(new Error(
-            'Invalid implementation short-name ' + shortName +
-            ' in benchmark ' + description['short-name']))
-        }
-
-        return install(
-          description.implementations[shortName],
-          { destination: path.join(artifact.rootDir, 'implementations', shortName),
-            'short-name': shortName
-          })
-      })).then(Promise.resolve(artifact))
-    } else {
-      return artifact
-    }
-  } else {
-    return artifact
-  }
-}
-
-function installSuiteDependencies (artifact) {
-  var suite = artifact.description
-  var artifacts = []
-  var collections = [
-    'benchmarks',
-    'compilers',
-    'environments',
-    'suites'
-  ]
-
-  console.log('Installing all artifacts from suite ' + artifact.description.name)
-  collections.forEach((c) => {
-    if (suite.hasOwnProperty(c)) {
-      Object.keys(suite[c])
-        .forEach((shortName) => {
-          var id = suite[c][shortName]
-          artifacts.push(
-            install(id, { 'short-name': shortName })
-              .catch((err) => {
-                whenVerbose('Error when installing dependency ' + shortName + ' from ' + id)
-                err.id = id
-                err.shortName = shortName
-                return Promise.reject(err)
-              })
-          )
-        })
-    }
-  })
-
-  return barrier(artifacts)
-    .then((artifacts) => {
-      artifacts.rejected.forEach((err) => {
-        console.log('Installation failed for artifact: ')
-        console.log(err.id)
-        console.log(err)
-        console.log()
-      })
-
-      return artifacts.resolved
-    })
-}
-
-function installDependencies (installable) {
-  if (installable.type === 'suite') {
-    return installSuiteDependencies(installable)
-  } else if (installable.type === null) {
-    return Promise.resolve(installable)
-      .then(installNodePackage)
-      .then(installCustom)
-  } else {
-    return Promise.resolve(installable)
-      .then(installNodePackage)
-      .then(installCustom)
-      .then(installDescriptionDependencies)
-  }
-}
-
-function validateArtifact (options) {
-  return (artifact) => {
-    whenVerbose('Checking whether the artifact is valid')
-    artifact.description['short-name'] = options.shortName || artifact.description['short-name']
-    return new Promise(function (resolve, reject) {
-      var desc = artifact.description
-      var shortName = desc['short-name']
-      if (!configLib.validateShortName(shortName)) {
-        reject('Invalid short-name ' + desc['short-name'])
-      }
-
-      fs.writeFile(
-        path.join(artifact.rootDir, artifact.type + '.json'),
-        JSON.stringify(desc, null, '  '),
-        function (err) {
-          if (err) {
-            reject(err)
-          } else {
-            if (!artifact.hasOwnProperty('destination')) {
-              var artifactCollectionDir = path.join(suiteRoot, artifact.type + 's')
-              if (!shelljs.test('-e', artifactCollectionDir)) {
-                shelljs.mkdir('-p', artifactCollectionDir)
-              }
-
-              artifact.destination = path.join(artifactCollectionDir, shortName)
-            }
-
-            if (shelljs.test('-e', artifact.destination)) {
-              reject(new Error('Aborting: existing artifact in ' + artifact.destination))
-            } else {
-              whenVerbose('Artifact is ready to be moved')
-              resolve(artifact)
-            }
-          }
-        })
-    })
-  }
-}
-
-function move (installable) {
-  return new Promise(function (resolve, reject) {
-    if (!installable.rootDir) {
-      return reject(new Error('Internal error: no root directory specified for ' + JSON.stringify(installable)))
-    }
-
-    if (!installable.destination) {
-      return reject(new Error('No installation directory specified for ' + JSON.stringify(installable)))
-    }
-
-    if (shelljs.test('-e', installable.destination)) {
-      return reject(new Error('Aborting: ' + installable.destination + ' already exists'))
-    }
-
-    whenVerbose('Moving ' + installable.rootDir + ' to ' + installable.destination)
-    fs.rename(installable.rootDir, installable.destination, function (err) {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(installable)
-      }
-    })
-  })
 }
 
 function cleanupThenExit (exitCode) {
@@ -488,125 +47,94 @@ function cleanupThenExit (exitCode) {
   }
 }
 
-function installArtifact (options) {
-  return function (tmpDir) {
-    return getInstallable(tmpDir)
-      .then(installDependencies(options))
-      .then(validateArtifact(options))
+function parseCommandLineArguments (parsed) {
+  var dependency = {
+    source: null
   }
-}
 
-function install (id, options) {
-  whenVerbose('parse(' + id + '):')
-  try {
-    var parsed = parse(id)
-  } catch (e) {
-    return Promise.reject(new Error('Invalid artifact ' + id))
-  }
-  whenVerbose(parsed)
-
-  whenVerbose('fetch(' + parsed + ')')
-
-  if (parsed.type === 'url' ||
-    parsed.type === 'git' ||
-    parsed.type === 'file') {
-    return fetch(parsed.value)
-      .then(getInstallable)
-      .then((installable) => {
-        if (installable.type) {
-          return Promise.resolve(installable)
-            .then(installArtifact(options))
-            .then(move)
-        } else {
-          if (!options.destination) {
-            return Promise.reject(new Error('No installation path specified for ' + parsed.value))
-          }
-
-          installable.destination = options.destination
-          return Promise.resolve(installable)
-            .then(move)
-        }
-      })
-  } else if (parsed.type === 'short-name') {
-    return install(parsed.value, options)
-  } else if (parsed.type === 'directory') {
-    var dirPath = path.resolve(process.cwd(), parsed.value)
-
-    if (options.verbose || !parsed.value.match('.wu')) {
-      console.log('Installing in directory ' + parsed.value)
-
-      if (!dirPath.match(suiteRoot) && !dirPath.match('(benchmarks|compilers|environments)')) {
-        console.log('WARNING: Installing artifact from non-standard path, other Wu-Wei tools may not recognize the artifact')
-      }
+  if (parsed.destination) {
+    try {
+      parsed.destination = JSON.parse(parsed.destination)
+    } catch (e) {
+      console.log('Invalid json object ' + parsed.destination)
+      cleanupThenExit(1)()
     }
-    return getInstallable(dirPath)
-      .then(installArtifact(options))
   } else {
-    throw new Error('Invalid parse type ' + parsed.type)
+    parsed.destination = null
   }
+
+  if (parsed.argv.remain.length > 0) {
+    dependency.source = parsed.argv.remain[0]
+  } else {
+    dependency.type = 'file'
+    dependency.source = process.cwd()
+    dependency.destination = null
+
+    if (parsed.destination !== dependency.destination) {
+      console.log("Provided destination '" + parsed.destination + "' but no destination should be provided when a directory is supplied")
+      cleanupThenExit(1)()
+    }
+  }
+
+  if (parsed.destination) {
+    dependency.destination = parsed.destination
+  }
+
+  if (parsed.type) {
+    dependency.type = parsed.type
+  }
+
+  if (parsed['short-name']) {
+    dependency['short-name'] = parsed['short-name']
+  }
+
+  return dependency
 }
 
-var suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
-var wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
-
-var registry = {
-  'ostrich:': 'https://raw.githubusercontent.com/Sable/ostrich-suite/master/suite.json',
-  'backprop': '/Users/erick/Documents/Recherche/backprop-benchmark.zip',
-  'c-commons': '/Users/erick/Documents/Recherche/ostrich-c-implementation-common.zip'
-}
-
-var knownOpts = {
+let knownOpts = {
+  'destination': String,
   'help': Boolean,
   'root': String,
+  'short-name': String,
+  'type': String,
   'verbose': Boolean
 }
-var shortHands = {
+let shortHands = {
+  'd': ['--destination'],
   'h': ['--help'],
   'r': ['--root'],
+  's': ['--short-name'],
+  't': ['--type'],
   'v': ['--verbose']
 }
-var description = {
-  'help': 'Display this help',
-  'root': 'Benchmark suite root',
-  'verbose': 'Display more information'
+let parsed = nopt(knownOpts, shortHands, process.argv, 2)
+let options = {
+  verbose: parsed.verbose || false,
 }
-var parsed = nopt(knownOpts, shortHands, process.argv, 2)
 
 if (parsed.help) {
-  var usage = noptUsage(knownOpts, shortHands, description)
-  var executableName = path.basename(process.argv[1])
-  console.log('Usage: ' + executableName + ' [path] [options]')
-  console.log(usage)
-  process.exit(1)
+  fs.createReadStream(path.join(__dirname, '..', 'lib', 'README-install.md'))
+    .pipe(process.stdout)
+    .on('close', () => process.exit(1))
+} else {
+  let installer = new install.Installer(options)
+
+  let f = installer.fetch(parseCommandLineArguments(parsed))
+  if (parsed.verbose) {
+    f.then(console.log)
+      .catch(onError).catch(cleanupThenExit(1))
+      .then(cleanupThenExit(0))
+  } else {
+    f.then(console.log).then(cleanupThenExit(0), cleanupThenExit(1))
+  }
+
+  // Graceful shutdown in case of CTRL-C
+  if (process.platform === 'win32') {
+    throw new Error('Unsupported windows platform')
+  }
+
+  process.on('SIGINT', function () {
+    cleanupThenExit(1)()
+  })
+
 }
-
-var options = {
-  verbose: parsed.verbose || false,
-  'short-name': null
-}
-
-var id = parsed.argv.remain.length > 0 ? parsed.argv.remain[0] : process.cwd()
-console.log(parse(id))
-// install(id, options)
-//  .catch(onError).catch(cleanupThenExit(1))
-//  .then(cleanupThenExit(0))
-
-// Graceful shutdown in case of CTRL-C
-if (process.platform === 'win32') {
-  throw new Error('Unsupported windows platform')
-/*
-var rl = require('readline').createInterface({
-  input: process.stdin,
-  output: process.stdout
-})
-
-rl.on('SIGINT', function () {
-  process.emit('SIGINT')
-})
-*/
-}
-
-process.on('SIGINT', function () {
-  temp.cleanupSync()
-  cleanupThenExit(1)()
-})
