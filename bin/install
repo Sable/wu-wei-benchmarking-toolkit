@@ -39,7 +39,7 @@ function cleanupThenExit (exitCode) {
 
     // Safety check to prevent automatically deleting
     // the entire file system in case of programming error!
-    if (wuTmpDirPath.match('\.wu')) {
+    if (wuTmpDirPath.match('\/\.wu\/tmp$')) {
       shelljs.rm('-rf', wuTmpDirPath)
     }
 
@@ -66,7 +66,6 @@ function parseCommandLineArguments (parsed) {
   if (parsed.argv.remain.length > 0) {
     dependency.source = parsed.argv.remain[0]
   } else {
-    dependency.type = 'file'
     dependency.source = process.cwd()
     dependency.destination = null
 
@@ -125,7 +124,10 @@ if (parsed.help) {
       .catch(onError).catch(cleanupThenExit(1))
       .then(cleanupThenExit(0))
   } else {
-    f.then(console.log).then(cleanupThenExit(0), cleanupThenExit(1))
+    f.then(console.log, (err) => {
+      console.log(err.message)
+      throw null
+    }).then(cleanupThenExit(0), cleanupThenExit(1))
   }
 
   // Graceful shutdown in case of CTRL-C
