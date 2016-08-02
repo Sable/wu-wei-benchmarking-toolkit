@@ -37,8 +37,9 @@ try {
 
 if (!exists) {
   shelljs.mkdir(wuPath)
-  var ReadmeText = 'This is a hidden directory to maintain configuration information specific to a particular installation of the Ostrich Benchmark Suite, following the Wu Wei Benchmarking Toolking standards (https://github.com/Sable/wu-wei-benchmarking-toolkit).'
-  fs.writeFileSync(path.join(wuPath, 'README.md'), ReadmeText)
+  fs.writeFileSync(path.join(wuPath, 'README.md'), fs.readFileSync(path.join(__dirname, '..', 'lib', 'README-wu.md')))
+  shelljs.mkdir(path.join(wuPath, 'dependencies'))
+  fs.writeFileSync(path.join(wuPath, 'dependencies.json'), JSON.stringify({}))
 }
 
 var silentState = shelljs.config.silent
