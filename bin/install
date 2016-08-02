@@ -91,6 +91,7 @@ function parseCommandLineArguments (parsed) {
 }
 
 let knownOpts = {
+  'clear-cache': Boolean,
   'destination': String,
   'help': Boolean,
   'root': String,
@@ -116,6 +117,15 @@ if (parsed.help) {
     .pipe(process.stdout)
     .on('close', () => process.exit(1))
 } else {
+  if (parsed['clear-cache']) {
+    let wuDependencyCache = path.join(suiteRoot, '.wu', 'dependencies')
+    let wuDependencyCacheListing = path.join(suiteRoot, '.wu', 'dependencies.json')
+    shelljs.rm('-rf', path.join(wuDependencyCache, '*'))
+    shelljs.rm(wuDependencyCacheListing)
+    fs.writeFileSync(wuDependencyCacheListing, JSON.stringify({}))
+    process.exit(0)
+  }
+
   let installer = new install.Installer(options)
 
   let f = installer

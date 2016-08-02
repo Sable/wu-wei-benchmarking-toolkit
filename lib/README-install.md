@@ -14,6 +14,7 @@ A <dependency-source> may or may not contain a Wu-Wei artifact.
 <sub-directory> must be a sub-directory of the current repository.
 
 Options:
+	--clear-cache        Remove all cached remote dependencies
     --destination, -d    Destination of the dependency. Optional for Wu-Wei artifacts,
                          mandatory otherwise.
     --help, -h           Display this help.
