@@ -103,28 +103,31 @@
       },
       "required": ["small", "medium"]
     },
-    "dependency": {
-      "type": "object",
-      "properties": {
-        "source": { "anyOf": [
-          { "type": "string" },
-          {
-            "type": "object",
-            "properties": {
-              "type": { "enum": [ "git", "url", "directory", "file", "short-name" ]},
-              "value": { "type": "string" }
+    "dependency": { "anyOf" : [
+      { "type": "string" },
+      {
+        "type": "object",
+        "properties": {
+          "source": { "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "type": { "enum": [ "git", "url", "directory", "file", "short-name" ]},
+                "value": { "type": "string" }
+              }
             }
-          }
-        ]},
-        "location": { "$ref": "#/definitions/file-path" },
-        "destination": { "anyOf": [
-          { "$ref": "#/definitions/file-path" },
-          { "type": "null" }
-        ]},
-        "short-name": { "$ref": "/definitions/short-name" },
-        "type": { "enum": ["benchmark", "compiler", "environment", "experiment", "implementation" ] }
+          ]},
+          "location": { "$ref": "#/definitions/file-path" },
+          "destination": { "anyOf": [
+            { "$ref": "#/definitions/file-path" },
+            { "type": "null" }
+          ]},
+          "short-name": { "$ref": "/definitions/short-name" },
+          "type": { "enum": ["file", "benchmark", "compiler", "environment", "experiment", "implementation" ] }
+        }
       }
-    },
+    ]},
     "dependency-list": {
       "type": "array",
       "items": { "$ref": "#/definitions/dependency" },
