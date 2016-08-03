@@ -18,6 +18,7 @@ Options:
     --destination, -d    Destination of the dependency. Optional for Wu-Wei artifacts,
                          mandatory otherwise.
     --help, -h           Display this help.
+    --not-recursive      Skip the dependency's recursive dependencies.
     --root, -r           Benchmark suite root.
     --short-name, -s     (Optional) Short-name to use for the Wu-Wei artifact 
                          <dependency-source> after installation.

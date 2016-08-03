@@ -94,6 +94,7 @@ let knownOpts = {
   'clear-cache': Boolean,
   'destination': String,
   'help': Boolean,
+  'not-recursive': Boolean,
   'root': String,
   'short-name': String,
   'type': String,
