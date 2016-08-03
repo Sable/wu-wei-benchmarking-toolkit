@@ -111,6 +111,7 @@ let shortHands = {
 let parsed = nopt(knownOpts, shortHands, process.argv, 2)
 let options = {
   verbose: parsed.verbose || false,
+  recursive: !parsed['not-recursive']
 }
 
 if (parsed.help) {
@@ -143,7 +144,9 @@ if (parsed.help) {
       .catch(onError).catch(cleanupThenExit(1))
       .then(cleanupThenExit(0))
   } else {
-    f.then(console.log, (err) => {
+    f.then((dependency) => {
+      console.log(JSON.stringify(dependency, null, '  '))
+    }, (err) => {
       console.log(err.message)
       throw null
     }).then(cleanupThenExit(0), cleanupThenExit(1))
