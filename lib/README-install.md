@@ -17,6 +17,8 @@ Options:
 	--clear-cache        Remove all cached remote dependencies
     --destination, -d    Destination of the dependency. Optional for Wu-Wei artifacts,
                          mandatory otherwise.
+    --dry-run            Fetch dependencies recursively but skip installation and copy
+    				     to their final destination
     --help, -h           Display this help.
     --not-recursive      Skip the dependency's recursive dependencies.
     --root, -r           Benchmark suite root.

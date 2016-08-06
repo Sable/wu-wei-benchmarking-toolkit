@@ -121,7 +121,8 @@
           "location": { "$ref": "#/definitions/file-path" },
           "destination": { "anyOf": [
             { "$ref": "#/definitions/file-path" },
-            { "type": "null" }
+            { "type": "null" },
+            { "type": "string" }
           ]},
           "short-name": { "$ref": "/definitions/short-name" },
           "type": { "enum": ["file", "benchmark", "compiler", "environment", "experiment", "implementation" ] }

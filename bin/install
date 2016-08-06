@@ -13,15 +13,7 @@ let dir = require('node-dir')
 let pointer = require('json-pointer')
 let suiteRoot = configLib.findRootDirectoryPath(process.cwd(), '.wu')
 let wuTmpDirPath = path.join(suiteRoot, '.wu', 'tmp')
-let install = require(path.join(__dirname, '..', 'lib', 'install.js'))
-
-function onError (e) {
-  if (e.stack) {
-    console.log(e.stack)
-  }
-  console.log(e)
-  throw e
-}
+let wuInstall = require(path.join(__dirname, '..', 'lib', 'install.js'))
 
 function whenVerbose (m) {
   if (options.verbose) {
@@ -93,6 +85,7 @@ function parseCommandLineArguments (parsed) {
 let knownOpts = {
   'clear-cache': Boolean,
   'destination': String,
+  'dry-run': Boolean,
   'help': Boolean,
   'not-recursive': Boolean,
   'root': String,
@@ -125,32 +118,64 @@ if (parsed.help) {
     shelljs.rm('-rf', path.join(wuDependencyCache, '*'))
     shelljs.rm(wuDependencyCacheListing)
     fs.writeFileSync(wuDependencyCacheListing, JSON.stringify({}))
+    console.log('Cleared cache')
     process.exit(0)
   }
 
-  let installer = new install.Installer(options)
+  let installer = wuInstall.Installer(options)
 
-  let f = installer
-    .fetch(parseCommandLineArguments(parsed))
-    .then((dependency) => {
-      if (dependency.destination && installer.exists(dependency)) {
-        return Promise.reject(new Error('Directory ' + dependency.destination + ' already exists, aborting'))
-      } else {
-        return Promise.resolve(dependency)
-      }
-    })
-  if (parsed.verbose) {
-    f.then(console.log)
-      .catch(onError).catch(cleanupThenExit(1))
-      .then(cleanupThenExit(0))
-  } else {
-    f.then((dependency) => {
-      console.log(JSON.stringify(dependency, null, '  '))
-    }, (err) => {
-      console.log(err.message)
-      throw null
-    }).then(cleanupThenExit(0), cleanupThenExit(1))
+  function checkDestination (dependency) {
+    if (dependency.destination && installer.exists(dependency)) {
+      return Promise.reject(new Error('Directory ' + dependency.destination + ' already exists, aborting'))
+    } else {
+      return Promise.resolve(dependency)
+    }
   }
+
+  function install (dependency) {
+    if (parsed['dry-run']) {
+      return Promise.resolve(dependency)
+    } else {
+      return Promise.resolve(dependency)
+        .then(installer.install)
+    }
+  }
+
+  function move (dependency) {
+    if (parsed['dry-run']) {
+      return Promise.resolve(dependency)
+    } else {
+      return Promise.resolve(dependency)
+        .then(installer.move)
+    }
+  }
+
+  function print (dependency) {
+    if (parsed.verbose) {
+      console.log(JSON.stringify(dependency, null, '  '))
+      return Promise.resolve(dependency)
+    } else {
+      return Promise.resolve(dependency)
+    }
+  }
+
+  function printStackTrace (err) {
+    if (parsed.verbose && err.stack) {
+      console.log(err.stack)
+    }
+
+    return Promise.reject(err)
+  }
+
+  installer
+    .fetch(parseCommandLineArguments(parsed))
+    .then(print)
+    .then(checkDestination)
+    .then(install)
+    .then(move)
+    .catch(printStackTrace)
+
+    .then(cleanupThenExit(0), cleanupThenExit(1))
 
   // Graceful shutdown in case of CTRL-C
   if (process.platform === 'win32') {
