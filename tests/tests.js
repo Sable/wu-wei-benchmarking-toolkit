@@ -66,7 +66,7 @@ describe('Wu-Wei Tests', function () {
 
   it('Fetch from a remote github repository', function () {
     this.timeout(0)
-    wu('install git@github.com:Sable/ostrich-matlab-concatenate-compiler.git' + options)
+    wu('install https://github.com/Sable/ostrich-matlab-concatenate-compiler.git' + options)
     fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
   })
 
