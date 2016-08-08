@@ -6,8 +6,9 @@ var shelljs = require('shelljs')
 var fs = require('fs')
 var exec = require('child_process').exec
 
+var wuPath = path.join(__dirname, '..', 'bin', 'wu')
 function wu (cmd) {
-  var wuCmd = 'wu ' + cmd
+  var wuCmd = wuPath + ' ' + cmd
   var status = shelljs.exec(wuCmd)
   if (status.code !== 0) {
     throw new Error('Error while executing ' + wuCmd + ', obtained status ' + status.code + ' and error output' + status.stderr)
