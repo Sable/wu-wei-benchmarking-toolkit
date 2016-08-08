@@ -1,0 +1,11 @@
+{
+    "type": "experiment",
+    "short-name": "fib-exp",
+    "name": "Fibonacci experiment",
+    "description": "Experiments with the fibonacci benchmark",
+    "dependencies": [
+        "http://localhost:8080/fib-benchmark.zip",
+        "http://localhost:8080/gcc-compiler.zip",
+        "http://localhost:8080/native-environment.tar.gz"
+    ]
+}
