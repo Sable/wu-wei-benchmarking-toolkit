@@ -84,6 +84,7 @@ function parseCommandLineArguments (parsed) {
 
 let knownOpts = {
   'clear-cache': Boolean,
+  'compatibilities': Boolean,
   'destination': String,
   'dry-run': Boolean,
   'help': Boolean,
@@ -104,7 +105,8 @@ let shortHands = {
 let parsed = nopt(knownOpts, shortHands, process.argv, 2)
 let options = {
   verbose: parsed.verbose || false,
-  recursive: !parsed['not-recursive']
+  recursive: !parsed['not-recursive'],
+  compatibilities: parsed['compatibilities'] || false
 }
 
 if (parsed.help) {
@@ -151,7 +153,7 @@ if (parsed.help) {
   }
 
   function print (dependency) {
-    if (parsed.verbose) {
+    if (parsed.verbose || parsed['dry-run']) {
       console.log(JSON.stringify(dependency, null, '  '))
       return Promise.resolve(dependency)
     } else {
@@ -174,7 +176,6 @@ if (parsed.help) {
     .then(install)
     .then(move)
     .catch(printStackTrace)
-
     .then(cleanupThenExit(0), cleanupThenExit(1))
 
   // Graceful shutdown in case of CTRL-C
