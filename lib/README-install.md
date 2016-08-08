@@ -21,9 +21,10 @@ Options:
     --dry-run            Fetch dependencies recursively but skip installation and copy
     				     to their final destination
     --help, -h           Display this help.
+    --implementation, -i Filter out implementation dependencies that do not match the given short-name.
     --not-recursive      Skip the dependency's recursive dependencies.
     --root, -r           Benchmark suite root.
-    --short-name, -s     (Optional) Short-name to use for the Wu-Wei artifact 
+    --short-name, -s     Short-name to use for the Wu-Wei artifact
                          <dependency-source> after installation.
     --type, -t           (Optional) Type of the dependency (Wu-Wei artifact type 
                          (ex:  benchmark) or 'file' otherwise).

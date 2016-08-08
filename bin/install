@@ -88,6 +88,7 @@ let knownOpts = {
   'destination': String,
   'dry-run': Boolean,
   'help': Boolean,
+  'implementation': [Array, String],
   'not-recursive': Boolean,
   'root': String,
   'short-name': String,
@@ -97,6 +98,7 @@ let knownOpts = {
 let shortHands = {
   'd': ['--destination'],
   'h': ['--help'],
+  'i': ['--implementation'],
   'r': ['--root'],
   's': ['--short-name'],
   't': ['--type'],
@@ -106,7 +108,8 @@ let parsed = nopt(knownOpts, shortHands, process.argv, 2)
 let options = {
   verbose: parsed.verbose || false,
   recursive: !parsed['not-recursive'],
-  compatibilities: parsed['compatibilities'] || false
+  compatibilities: parsed['compatibilities'] || false,
+  implementations: parsed['implementation']
 }
 
 if (parsed.help) {
