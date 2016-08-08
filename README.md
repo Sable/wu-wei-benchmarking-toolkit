@@ -1,9 +1,7 @@
 Wu Wei (無爲) Benchmarking Toolkit
 ==========================
 
-[![Join the chat at https://gitter.im/Sable/wu-wei-benchmarking-toolkit](https://badges.gitter.im/Sable/wu-wei-benchmarking-toolkit.svg)](https://gitter.im/Sable/wu-wei-benchmarking-toolkit?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-[![Build Status](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit.svg?branch=master)](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit)
+[![Join the chat at https://gitter.im/Sable/wu-wei-benchmarking-toolkit](https://badges.gitter.im/Sable/wu-wei-benchmarking-toolkit.svg)](https://gitter.im/Sable/wu-wei-benchmarking-toolkit?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Build Status](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit.svg?branch=master)](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit)
 
 Wu wei (*[non-effort](https://en.wikipedia.org/wiki/Wu_wei)*) is a benchmarking toolkit developed in the [Sable Lab](http://www.sable.mcgill.ca/) at [McGill University](//www.mcgill.ca/) with the objective of simplifying the study of languages and tools used for numerical computing.
 
