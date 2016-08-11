@@ -13,6 +13,7 @@ var knownOpts = {
   'experiment': String,
   'help': Boolean,
   'implementation': [String, Array],
+  'input-size': [String],
   'root': String,
   'verbose': Boolean
 }
@@ -22,6 +23,7 @@ var shortHands = {
   'e': ['--experiment'],
   'h': ['--help'],
   'i': ['--implementation'],
+  'is': ['--input-size'],
   'v': ['--verbose']
 }
 
@@ -65,7 +67,12 @@ configLib.config(suiteRoot, function (err, config) {
   configLib.genBuildConfigurations(config, {
     benchmarks: parsed.benchmarks.length > 0 ? parsed.benchmarks : config['benchmarks-list'],
     implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
-    compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list']
+    compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list'],
+    experiment: {
+      'type': 'experiment',
+      'short-name': 'default',
+      'input-size': parsed['input-size'] || 'medium'
+    }
   }).forEach(function (config) {
     configLib.createRunner(config, parsed)
   })

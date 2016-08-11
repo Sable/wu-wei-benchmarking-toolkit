@@ -46,6 +46,8 @@ if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.index
     var commandName = parsed.argv.remain[1]
     var commandPath = path.join(__dirname, commandName)
     var stat = fs.statSync(commandPath)
+    var hiddenDirName = '.wu'
+    var suiteRoot = parsed.root ? path.resolve(process.cwd(), parsed.root) : configLib.findRootDirectoryPath(process.cwd(), hiddenDirName)
 
     if (stat.isFile()) {
       var args = suiteRoot === null ? ['-h'] : ['-h', '--root', suiteRoot]

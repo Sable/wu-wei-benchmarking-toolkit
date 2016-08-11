@@ -110,7 +110,8 @@ configLib.config(suiteRoot, function (err, config) {
     builds = configLib.genBuildConfigurations(config, {
       benchmarks: parsed.benchmarks.length > 0 ? parsed.benchmarks : config['benchmarks-list'],
       implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
-      compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list']
+      compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list'],
+      experiment: run.experiment
     })
 
     // Make sure to rebuild everything before running
