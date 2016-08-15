@@ -173,9 +173,17 @@ configLib.config(suiteRoot, function (err, config) {
       if (parsed.verbose) {
         console.log('************** Iteration ' + i + ' ************')
       }
+      let silentState = shelljs.config.silent
+      shelljs.config.silent = true
       shelljs.pushd(iterationDir)
+      shelljs.config.silent = silentState
+
       var output = configLib.executeRun(runConfig, parsed)
+
+      shelljs.config.silent = true
       shelljs.popd()
+      shelljs.config.silent = silentState
+
       runConfig.times.push(output.time)
     }
 
