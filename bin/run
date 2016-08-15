@@ -139,6 +139,7 @@ configLib.config(suiteRoot, function (err, config) {
 
   runConfigs.forEach(function (runConfig) {
     runConfig.times = []
+    runConfig.outputs = []
 
     console.log('-------------- ' + runConfig.benchmark['short-name'] +
       ',' + runConfig.implementation['short-name'] +
@@ -185,6 +186,7 @@ configLib.config(suiteRoot, function (err, config) {
       shelljs.config.silent = silentState
 
       runConfig.times.push(output.time)
+      runConfig.outputs.push(output)
     }
 
     run.results[hashDigest] = runConfig
