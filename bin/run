@@ -133,6 +133,10 @@ configLib.config(suiteRoot, function (err, config) {
     experiment: run.experiment
   })
 
+  var wuRunTmpDir = path.join(suiteRoot, '.wu', 'run-tmp')
+  shelljs.mkdir('-p', wuRunTmpDir)
+  shelljs.rm('-rf', path.join(wuRunTmpDir, '*'))
+
   runConfigs.forEach(function (runConfig) {
     runConfig.times = []
 
@@ -146,26 +150,36 @@ configLib.config(suiteRoot, function (err, config) {
       console.log(runConfig.experiment)
     }
 
+    var hashDigest = crypto
+      .createHash('sha1')
+      .update(JSON.stringify({
+        benchmark: runConfig.benchmark,
+        implementation: runConfig.implementation,
+        compiler: runConfig.compiler,
+        platform: runConfig.platform,
+        environment: runConfig.environment,
+        experiment: {
+          'input-size': runConfig.experiment['input-size']
+        }
+      }))
+      .digest('hex')
+
+    var runConfigDir = path.join(wuRunTmpDir, hashDigest)
+    shelljs.mkdir('-p', runConfigDir)
+
     for (var i = 0; i < run.experiment['iteration-number']; ++i) {
+      var iterationDir = path.join(runConfigDir, String(i))
+      shelljs.mkdir('-p', iterationDir)
       if (parsed.verbose) {
         console.log('************** Iteration ' + i + ' ************')
       }
+      shelljs.pushd(iterationDir)
       var output = configLib.executeRun(runConfig, parsed)
+      shelljs.popd()
       runConfig.times.push(output.time)
     }
 
-    var hash = crypto.createHash('sha1')
-    hash.update(JSON.stringify({
-      benchmark: runConfig.benchmark,
-      implementation: runConfig.implementation,
-      compiler: runConfig.compiler,
-      platform: runConfig.platform,
-      environment: runConfig.environment,
-      experiment: {
-        'input-size': runConfig.experiment['input-size']
-      }
-    }))
-    run.results[hash.digest('hex')] = runConfig
+    run.results[hashDigest] = runConfig
   })
 
   var silentState = shelljs.config.silent
@@ -175,5 +189,8 @@ configLib.config(suiteRoot, function (err, config) {
   shelljs.mkdir('-p', dir)
   shelljs.ln('-s', dir, path.join(suiteRoot, 'runs', 'latest'))
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(run, null, '  '))
+  shelljs.cp('-r', path.join(wuRunTmpDir, '*'), dir)
   shelljs.config.silent = silentState
+
+  shelljs.rm('-rf', wuRunTmpDir)
 })
