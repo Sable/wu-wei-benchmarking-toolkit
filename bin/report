@@ -149,6 +149,8 @@ configLib.config(suiteRoot, function (err, config) {
 
     results[h]['mean-time'] = math.mean(results[h].times)
     results[h]['std-time'] = math.std(results[h].times)
+    results[h]['max-time'] = math.max(results[h].times)
+    results[h]['min-time'] = math.min(results[h].times)
     a.push(results[h])
   }
 
@@ -184,7 +186,7 @@ configLib.config(suiteRoot, function (err, config) {
       console.log('    slowdown = mean-time / (reference mean-time)')
     }
   } else {
-    lines = [names.concat(['mean', 'std', 'repetitions'])]
+    lines = [names.concat(['mean', 'std', 'min', 'max', 'repetitions'])]
   }
 
   var categories = ([['benchmarks', 'benchmark', 'short-name'],
@@ -292,6 +294,8 @@ configLib.config(suiteRoot, function (err, config) {
       var stdTime = runConfig['std-time']
       line.push(meanTime.toFixed(4) + 's')
       line.push('+-' + (stdTime / meanTime * 100).toFixed(2) + '%')
+      line.push(runConfig['min-time'].toFixed(4) + 's')
+      line.push(runConfig['max-time'].toFixed(4) + 's')
       line = line.concat(runConfig.times.length)
     }
 
