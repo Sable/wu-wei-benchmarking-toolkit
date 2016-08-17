@@ -68,7 +68,7 @@ if ((parsed.help && parsed.argv.remain.length === 0) || parsed.argv.remain.index
   console.log(alignCommands({
     'build': 'Create a build from a configuration',
     'init': 'Create an empty benchmarking repository',
-    // 'install': 'Add and initialize an artifact in the repository',
+    'install': 'Add and initialize an artifact in the repository',
     'list': 'Find, verify, and list available artifact(s)',
     'run': 'Execute build(s) on compatible environment(s) and produce a run',
     'report': 'Aggregate run(s), select significant result(s), and produce a report'
