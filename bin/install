@@ -46,12 +46,17 @@ function parseCommandLineArguments (parsed) {
   }
 
   if (parsed.destination) {
-    try {
-      parsed.destination = JSON.parse(parsed.destination)
-    } catch (e) {
-      console.log('Invalid json object ' + parsed.destination)
-      cleanupThenExit(1)()
+    let destination = path.resolve(process.cwd(), parsed.destination)
+    if (destination.indexOf(suiteRoot) === -1) {
+      return cleanupThenExit(1)(Promise.reject(new Error("Invalid destination path '" + parsed.destination + "', this path is outside the repository")))
     }
+
+    parsed.destination = { 'file': destination }
+
+    try {
+      fs.accessSync(parsed.destination.file)
+      cleanupThenExit(1)(new Error('Destination already exists, exiting'))
+    } catch (e) {}
   } else {
     parsed.destination = null
   }
@@ -63,8 +68,7 @@ function parseCommandLineArguments (parsed) {
     dependency.destination = null
 
     if (parsed.destination !== dependency.destination) {
-      console.log("Provided destination '" + parsed.destination + "' but no destination should be provided when a directory is supplied")
-      cleanupThenExit(1)()
+      cleanupThenExit(1)(new Error("Provided destination '" + parsed.destination + "' but no destination should be provided when installing from the current director"))
     }
   }
 
