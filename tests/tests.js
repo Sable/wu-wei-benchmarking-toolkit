@@ -76,6 +76,22 @@ describe('Wu-Wei Tests', function () {
     fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
   })
 
+  it('Initialize new implementation from template', function () {
+    this.timeout(0)
+    wu('install https://github.com/Sable/benchmark-template.git' + options)
+    let destination = path.join(tmp, 'benchmarks', 'template', 'implementations', 'matlab-test')
+    shelljs.mkdir('-p', path.dirname(destination))
+    wu('install https://github.com/Sable/matlab-implementation-template.git ' +
+      ' --destination ' + destination
+      + options)
+    let implementationDescription = path.join(destination, 'implementation.json')
+    fs.accessSync(implementationDescription)
+    let description = JSON.parse(fs.readFileSync(implementationDescription))
+    if (description['short-name'] !== 'matlab-test') {
+      throw new Error('Test error: unexpected short-name ' + description['short-name'])
+    }
+  })
+
   it('End-to-end test', function () {
     this.timeout(0)
     wu('install ' + path.join(testRoot, 'public', 'fib-experiment.json') + ' ' + options)
