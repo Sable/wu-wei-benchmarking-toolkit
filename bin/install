@@ -185,8 +185,8 @@ if (parsed.help) {
     .fetch(parseCommandLineArguments(parsed))
     .then(print)
     .then(checkDestination)
-    .then(install)
     .then(move)
+    .then(install)
     .catch(printStackTrace)
     .then(cleanupThenExit(0), cleanupThenExit(1))
 
