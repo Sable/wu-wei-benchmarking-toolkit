@@ -73,7 +73,9 @@ describe('Wu-Wei Tests', function () {
   it('Fetch artifact from a file archive on the file system', function () {
     this.timeout(0)
     wu('install ' + path.join(testRoot, 'public', 'ostrich-matlab-concatenate-compiler.zip') + ' ' + options)
-    fs.accessSync(path.join(tmp, 'compilers', 'matlab-concat', 'compiler.json'))
+    // Indeed the short-name has changed in the meantime but this zipped repo has not 
+    // been kept up-to-date with the maintained repo so it is still using the 'none-matlab' name
+    fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
   })
 
   it('Initialize new implementation from template', function () {
