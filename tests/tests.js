@@ -67,13 +67,13 @@ describe('Wu-Wei Tests', function () {
   it('Fetch from a remote github repository', function () {
     this.timeout(0)
     wu('install https://github.com/Sable/ostrich-matlab-concatenate-compiler.git' + options)
-    fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
+    fs.accessSync(path.join(tmp, 'compilers', 'matlab-concat', 'compiler.json'))
   })
 
   it('Fetch artifact from a file archive on the file system', function () {
     this.timeout(0)
     wu('install ' + path.join(testRoot, 'public', 'ostrich-matlab-concatenate-compiler.zip') + ' ' + options)
-    fs.accessSync(path.join(tmp, 'compilers', 'none-matlab', 'compiler.json'))
+    fs.accessSync(path.join(tmp, 'compilers', 'matlab-concat', 'compiler.json'))
   })
 
   it('Initialize new implementation from template', function () {
