@@ -24,7 +24,7 @@ Individual artifacts may have more dependencies. Refer to their documentation fo
 
 Getting Started
 ------------------------
-Please [the handbook](https://github.com/Sable/wu-wei-handbook) for more details on how to use it.
+Please read [the handbook](https://github.com/Sable/wu-wei-handbook) for more details on how to use it.
 
 Copyright and License
 -------------------------
