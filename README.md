@@ -5,7 +5,7 @@ Wu Wei (無爲) Benchmarking Toolkit
 
 Wu wei (*[non-effort](https://en.wikipedia.org/wiki/Wu_wei)*) is a benchmarking toolkit developed in the [Sable Lab](http://www.sable.mcgill.ca/) at [McGill University](//www.mcgill.ca/) with the objective of simplifying the study of the performance of programming languages implementations and tools.
 
-We aim to make the toolkit be:
+We aim to make the toolkit and the benchmark suites built with it:
  1. **Consistent** and **Correct** by supporting correctness checks for every language implementation of benchmarks that automatically ensure that the computation result of the benchmarks are consistent across all language implementations and correct with regard to the algorithm for known inputs;
  2. **Extensible** across numerical languages, benchmarks, compilers, run-time environments;
  3. **Friendly to language implementation research** by automating all tasks for compiler and virtual-machine research and encouraging a writing style for benchmarks that factors the core computation from the runners to minimize the non-core functions necessary to validate the output of compilers;
