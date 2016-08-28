@@ -3,7 +3,7 @@ Wu Wei (無爲) Benchmarking Toolkit
 
 [![Join the chat at https://gitter.im/Sable/wu-wei-benchmarking-toolkit](https://badges.gitter.im/Sable/wu-wei-benchmarking-toolkit.svg)](https://gitter.im/Sable/wu-wei-benchmarking-toolkit?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Build Status](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit.svg?branch=master)](https://travis-ci.org/Sable/wu-wei-benchmarking-toolkit)
 
-Wu wei (*[non-effort](https://en.wikipedia.org/wiki/Wu_wei)*) is a benchmarking toolkit developed in the [Sable Lab](http://www.sable.mcgill.ca/) at [McGill University](//www.mcgill.ca/) with the objective of simplifying the study of languages and tools used for numerical computing.
+Wu wei (*[non-effort](https://en.wikipedia.org/wiki/Wu_wei)*) is a benchmarking toolkit developed in the [Sable Lab](http://www.sable.mcgill.ca/) at [McGill University](//www.mcgill.ca/) with the objective of simplifying the study of the performance of programming languages implementations and tools.
 
 We aim to make the toolkit be:
  1. **Consistent** and **Correct** by supporting correctness checks for every language implementation of benchmarks that automatically ensure that the computation result of the benchmarks are consistent across all language implementations and correct with regard to the algorithm for known inputs;
@@ -22,7 +22,7 @@ Although we tried our best to minimize external dependencies, the suite still de
 
 Getting Started
 ------------------------
-Please [read our wiki](../../wiki) for more details on obtaining the toolkit and how to add benchmarks, compilers, and environments to use.
+Please [the handbook](https://github.com/Sable/wu-wei-handbook) for more details on how to use it.
 
 Copyright and License
 -------------------------
