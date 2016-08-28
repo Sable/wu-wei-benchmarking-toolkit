@@ -16,9 +16,11 @@ We aim to make the toolkit be:
  
 Dependencies
 ------------------------
-Although we tried our best to minimize external dependencies, the suite still depends on the following external tools:
+Although we tried our best to minimize external dependencies, the toolkit still depends on the following external tools:
  1. Node.js
  2. Python
+
+Individual artifacts may have more dependencies. Refer to their documentation for more details.
 
 Getting Started
 ------------------------
