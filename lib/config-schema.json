@@ -268,7 +268,7 @@
         "dependencies": { "$ref": "#/definitions/dependency-list" },
         "compatibilities": { "$ref": "#/definitions/dependency-list" }
       },
-      "required": ["type", "short-name", "version", "supported-languages", "supported-formats"]
+      "required": ["type", "short-name", "version", "supported-languages"]
     },
     "environment-list": {
       "type": "array",
