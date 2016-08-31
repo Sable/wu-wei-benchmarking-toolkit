@@ -110,6 +110,39 @@ configLib.config(suiteRoot, function (err, config) {
     }
   }
 
+  function computeMaxLengths (lines) {
+    // Align output
+    var maxLengths = lines[0].map(function (x) { return String(x).length })
+    lines.forEach(function (line) {
+      line.forEach(function (x, i) {
+        var s = String(x)
+        if (s.length > maxLengths[i]) {
+          maxLengths[i] = s.length
+        }
+      })
+    })
+    return maxLengths
+  }
+
+  function format (line, maxLengths) {
+    var delim = '|'
+    return delim + ' ' + line.map(function (x, i) {
+      var s = String(x)
+      var diff = maxLengths[i] - s.length
+      return s + spaces.slice(0, diff)
+    }).join(' ' + delim + ' ') + ' ' + delim
+  }
+
+  function underlines (maxLengths) {
+    // Underlines
+    console.log(format(lines[0].map(function (x, i) {
+      return dashes.slice(0, maxLengths[i])
+    }), maxLengths))
+  }
+
+  var spaces = '                                 '
+  var dashes = '---------------------------------'
+
   var isSelected = configLib.createConfigFilter(config, parsed)
   var results = {}
   runs.forEach(function (runPath) {
@@ -158,16 +191,21 @@ configLib.config(suiteRoot, function (err, config) {
   console.log()
   var invariants = {}
   var variants = {}
-  console.log('| category | short-name |')
-  console.log('| -------- | ---------- |')
+  var lines = [['category', 'short-name']]
   for (var k in keys) {
     if (Object.keys(keys[k]).length === 1) {
       invariants[k] = true
-      console.log('|    ' + k.slice(0, -1) + ' | ' + Object.keys(keys[k]) + ' |')
+      lines.push([k.slice(0, -1), Object.keys(keys[k])])
     } else {
       variants[k] = true
     }
   }
+  var maxLengths = computeMaxLengths(lines)
+  console.log(format(lines[0], maxLengths))
+  underlines(maxLengths)
+  lines.slice(1).forEach((line) => {
+    console.log(format(line, maxLengths))
+  })
 
   var names = []
   Object.keys(variants).forEach(function (n) {
@@ -303,44 +341,14 @@ configLib.config(suiteRoot, function (err, config) {
   })
   console.log()
 
-  // Align output
-  var maxLengths = lines[0].map(function (x) { return String(x).length })
-
-  lines.forEach(function (line) {
-    line.forEach(function (x, i) {
-      var s = String(x)
-      if (s.length > maxLengths[i]) {
-        maxLengths[i] = s.length
-      }
-    })
-  })
-
-  var spaces = '                                 '
-  var dashes = '---------------------------------'
-
-  function format (line) {
-    var delim = '|'
-    return delim + line.map(function (x, i) {
-      var s = String(x)
-      var diff = maxLengths[i] - s.length
-      return s + spaces.slice(0, diff)
-    }).join(' | ') + delim
-  }
-
-  function underlines () {
-    // Underlines
-    console.log(format(lines[0].map(function (x, i) {
-      return dashes.slice(0, maxLengths[i])
-    })))
-  }
-
   // Header
+  var maxLengths = computeMaxLengths(lines)
   console.log('### Results ###')
   console.log()
-  console.log(format(lines[0]))
-  underlines()
+  console.log(format(lines[0], maxLengths))
+  underlines(maxLengths)
   lines.slice(1).forEach(function (line) {
-    console.log(format(line))
+    console.log(format(line, maxLengths))
   })
   console.log()
 
