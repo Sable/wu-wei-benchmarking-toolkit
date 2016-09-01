@@ -51,6 +51,7 @@ describe('Wu-Wei Tests', function () {
   })
 
   beforeEach('Setup test directory', function () {
+    this.timeout(0);
     tmp = path.resolve(process.cwd(), fs.mkdtempSync(path.join(rootTmp, 'test')))
     shelljs.cd(tmp)
     wu('init')
