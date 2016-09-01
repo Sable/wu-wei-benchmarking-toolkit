@@ -28,4 +28,4 @@ Please read [the handbook](https://github.com/Sable/wu-wei-handbook) for more de
 
 Copyright and License
 -------------------------
-Copyright (c) 2016, Erick Lavoie, Laurie Hendren and McGill University.
+Copyright (c) 2016, Erick Lavoie, Hanfeng Chen
