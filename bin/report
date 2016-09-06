@@ -358,6 +358,7 @@ configLib.config(suiteRoot, function (err, config) {
     var setupPath = path.join(suiteRoot, '.wu', 'setup.json')
     var setupPlotly = JSON.parse(fs.readFileSync(setupPath)).plotly
 
+    /*
     if (!setupPlotly || !setupPlotly.username || !setupPlotly.apiKey) {
       console.log("Unspecified plotly credentials in'.wu/setup.json', please specify plotly.username and plotly.apikey.")
       process.exit(1)
@@ -368,6 +369,7 @@ configLib.config(suiteRoot, function (err, config) {
       console.log("Invalid plotly credentials in'.wu/setup.json'. Your credentials can be found under 'https://plot.ly/settings/api' when logging in.")
       process.exit(1)
     }
+    */
 
     var data = {}
 
