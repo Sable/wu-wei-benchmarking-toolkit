@@ -164,6 +164,15 @@ if (parsed.help) {
     }
   }
 
+  function validateAfterInstall (dependency) {
+    if (parsed['dry-run']) {
+      return Promise.resolve(dependency)
+    } else {
+      return Promise.resolve(dependency)
+        .then(installer.validateAfterInstall)
+    }
+  }
+
   function print (dependency) {
     if (parsed.verbose || parsed['dry-run']) {
       console.log(JSON.stringify(dependency, null, '  '))
@@ -187,6 +196,7 @@ if (parsed.help) {
     .then(checkDestination)
     .then(move)
     .then(install)
+    .then(validateAfterInstall)
     .catch(printStackTrace)
     .then(cleanupThenExit(0), cleanupThenExit(1))
 
