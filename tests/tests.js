@@ -62,6 +62,7 @@ describe('Wu-Wei Tests', function () {
   })
 
   it('Empty repository', function () {
+    this.timeout(0)
     wu('install')
   })
 
