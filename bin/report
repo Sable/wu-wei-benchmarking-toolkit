@@ -49,7 +49,7 @@ configLib.config(suiteRoot, function (err, config) {
   }
 
   var description = {
-    'csv': 'Output results in csv format (default)',
+    'csv': 'Output results in csv format',
     'help': 'Display this help',
     'run': 'Run results to use, repeat to combine results from multiple runs',
     'speedup': 'Compute speedup ratio compared to the given reference',
