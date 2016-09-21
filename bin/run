@@ -189,18 +189,18 @@ configLib.config(suiteRoot, function (err, config) {
       runConfig.outputs.push(output)
     }
 
-    run.results[hashDigest] = runConfig
+    var toWrite = configLib.deepcopy(run)
+    toWrite.results[hashDigest] = runConfig
+
+    var silentState = shelljs.config.silent
+    shelljs.config.silent = true
+    toWrite.time = moment().format()
+    var dir = path.join(suiteRoot, 'runs', toWrite.time)
+    shelljs.mkdir('-p', dir)
+    shelljs.ln('-s', dir, path.join(suiteRoot, 'runs', 'latest'))
+    fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(toWrite, null, '  '))
+    shelljs.cp('-r', path.join(wuRunTmpDir, '*'), dir)
+    shelljs.config.silent = silentState
   })
-
-  var silentState = shelljs.config.silent
-  shelljs.config.silent = true
-  run.time = moment().format()
-  var dir = path.join(suiteRoot, 'runs', run.time)
-  shelljs.mkdir('-p', dir)
-  shelljs.ln('-s', dir, path.join(suiteRoot, 'runs', 'latest'))
-  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(run, null, '  '))
-  shelljs.cp('-r', path.join(wuRunTmpDir, '*'), dir)
-  shelljs.config.silent = silentState
-
   shelljs.rm('-rf', wuRunTmpDir)
 })
