@@ -194,7 +194,7 @@ configLib.config(suiteRoot, function (err, config) {
 
     var silentState = shelljs.config.silent
     shelljs.config.silent = true
-    toWrite.time = moment().format()
+    toWrite.time = moment().format('YYYY-MM-DDTHH:mm:ss:SSSZ')
     var dir = path.join(suiteRoot, 'runs', toWrite.time)
     shelljs.mkdir('-p', dir)
     shelljs.ln('-s', dir, path.join(suiteRoot, 'runs', 'latest'))
