@@ -50,7 +50,13 @@ def getHardwareInfo():
     elif sys.platform == 'darwin':
         #info[0] = trimA(os.popen('system_profiler SPSoftwareDataType | grep "Computer Name"').read())
         info.append(trimA(os.popen('system_profiler SPHardwareDataType | grep "Processor Name"').read())) # [2]
-        info.append(trimA(os.popen('system_profiler SPDisplaysDataType | grep Model').read()))            # [3]
+
+        gpu_raw_info = os.popen('system_profiler SPDisplaysDataType | grep Model').read().split('\n')[:-1];
+        gpu_raw_info = map(lambda entry : trimA(entry), gpu_raw_info);
+        gpu_info = ', '.join(gpu_raw_info);
+        info.append(gpu_info);
+
+        #info.append(trimA(os.popen('system_profiler SPDisplaysDataType | grep Model').read()))            # [3]
         info.append(trimA(os.popen('system_profiler SPHardwareDataType | grep Memory').read()))           # [4]
         v,_,_ = platform.mac_ver(); info.append('Mac OS X ' + v)                                          # [5]
     elif sys.platform.startswith('linux'):
@@ -115,14 +121,14 @@ def getWindowCmd(cmd, op=True):
             if len(trimD(line)) > 0:
                 r.append(trimD(line))
     return r
-    
+
 def getWindowMem():
     total = getWindowCmd('wmic path win32_physicalmemory get Capacity', False)
     res = 0
     for num in total:
         res += int(num)
     return kb2gb(res,3)
-    
+
 def kb2gb(val,op=2):
     return '%g GB' % (val/(1024**op))
 
