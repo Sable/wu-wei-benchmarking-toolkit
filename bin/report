@@ -77,19 +77,6 @@ configLib.config(suiteRoot, function (err, config) {
     process.exit(0)
   }
 
-  /*
-  if (parsed.speedup || parsed.slowdown) {
-    var toAdd = []
-    var ratioNames = parsed.speedup || parsed.slowdown
-    ratioNames.split(',').forEach(function (n) {
-      if (parsed.argv.remain.indexOf(n) === -1) {
-        toAdd.push(n)
-      }
-    })
-    parsed.argv.remain = parsed.argv.remain.concat(toAdd)
-  }
-  */
-
   var experiment = {}
   if (parsed['input-size']) {
     experiment['input-size'] = parsed['input-size']
