@@ -1,10 +1,11 @@
 {
     "name": "wu-wei-benchmarking-toolkit",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "bin": {
         "wu": "bin/wu",
         "bt": "bin/wu"
     },
+    "main": "lib/api.js",
     "dependencies": {
         "node-dir": "^0.1.15",
         "nopt": "^3.0.6",
