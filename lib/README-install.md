@@ -23,6 +23,7 @@ Options:
     --help, -h           Display this help.
     --implementation, -i Filter out implementation dependencies that do not match the given short-name.
     --nocleanup          Skip the cleanup phase that removes cached dependencies and downloaded artifacts.
+    --noinstall          Skip the installation phase (npm install and custom install scripts).
     --not-recursive      Skip the dependency's recursive dependencies.
     --root, -r           Benchmark suite root.
     --short-name, -s     Short-name to use for the Wu-Wei artifact

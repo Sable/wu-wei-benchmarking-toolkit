@@ -110,6 +110,7 @@ let knownOpts = {
   'implementation': [Array, String],
   'not-recursive': Boolean,
   'nocleanup': Boolean,
+  'noinstall': Boolean,
   'root': String,
   'short-name': String,
   'type': String,
@@ -127,6 +128,7 @@ let shortHands = {
 let parsed = nopt(knownOpts, shortHands, process.argv, 2)
 let options = {
   cleanup: !parsed.nocleanup,
+  install: !parsed.noinstall,
   verbose: parsed.verbose || false,
   recursive: !parsed['not-recursive'],
   compatibilities: parsed['compatibilities'] || false,
@@ -154,7 +156,7 @@ if (parsed.help) {
   }
 
   function install (dependency) {
-    if (parsed['dry-run']) {
+    if (parsed['dry-run'] || !options.install) {
       return Promise.resolve(dependency)
     } else {
       return Promise.resolve(dependency)
