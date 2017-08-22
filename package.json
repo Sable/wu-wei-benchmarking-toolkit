@@ -1,6 +1,6 @@
 {
   "name": "wu-wei-benchmarking-toolkit",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "bin": {
     "wu": "bin/wu",
     "bt": "bin/wu"
@@ -21,7 +21,7 @@
     "plotly": "^1.0.0",
     "readline-sync": "^1.0.0",
     "request": "^2.73.0",
-    "shelljs": "^0.7.2",
+    "shelljs": "^0.7.8",
     "tar": "^2.2.1",
     "temp": "^0.8.3"
   },
