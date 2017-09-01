@@ -14,13 +14,14 @@ var knownOpts = {
   'build': [String, Array],
   'clean': Boolean,
   'compiler': [String, Array],
+  'environment': [String, Array],
   // 'experiment': String,
   'help': Boolean,
   'implementation': [String, Array],
   'input-size': String,
   'iteration-number': Number,
+  'non-verbose': Boolean,
   'platform': String,
-  'environment': [String, Array],
   'skip-output-verification': Boolean,
   'root': String,
   'verbose': Boolean
@@ -37,7 +38,7 @@ var shortHands = {
   'n': ['--iteration-number'],
   'p': ['--platform'],
   'r': ['--root'],
-  'v': ['--verbose']
+  'nv': ['--non-verbose']
 }
 
 var parsed = nopt(knownOpts, shortHands)
@@ -70,9 +71,11 @@ configLib.config(suiteRoot, function (err, config) {
     'implementation': "Implementation's short-name, repeat to specify multiple implementations",
     'input-size': 'One of [' + pointer.get(config.schema, '/definitions/experiment/properties/input-size/enum') + '], defaults to medium',
     'iteration-number': 'Number of times to execute the benchmark',
+    'non-verbose': 'Do not print run execution information',
     'platform': 'Path to a configuration file describing the current hardware configuration',
     'root': 'Benchmark suite root',
-    'skip-output-verification': 'Do not perform verification of output results'
+    'skip-output-verification': 'Do not perform verification of output results',
+    'verbose': 'Print run execution information (defaults to true)'
   }
 
   if (parsed.help) {
@@ -89,6 +92,8 @@ configLib.config(suiteRoot, function (err, config) {
     console.log(usage)
     process.exit(0)
   }
+
+  parsed.verbose = !parsed['non-verbose']
 
   // Load builds
   var run = {
