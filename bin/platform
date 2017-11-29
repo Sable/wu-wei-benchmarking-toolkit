@@ -155,6 +155,7 @@ def getShortName():
         '--  (For example, mbp-2011 / win-user / linux-fans)\n'
         '    Enter name: '))
     sys.stdout = oldout     # restore stdout
+    options['short-name'] = shortname
     return shortname
 
 def prettyPrint(s):

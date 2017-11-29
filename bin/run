@@ -135,7 +135,8 @@ configLib.config(suiteRoot, function (err, config) {
     implementations: parsed.implementations.length > 0 ? parsed.implementations : config['implementation-list'],
     compilers: parsed.compilers.length > 0 ? parsed.compilers : config['compiler-list'],
     environments: parsed.environments.length > 0 ? parsed.environments : config['environment-list'],
-    experiment: run.experiment
+    experiment: run.experiment,
+    platform: parsed.platform
   })
 
   var wuRunTmpDir = path.join(suiteRoot, '.wu', 'run-tmp')
